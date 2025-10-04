@@ -1,0 +1,38 @@
+{
+  "name": "expense-management-mern",
+  "version": "1.0.0",
+  "description": "A comprehensive expense management system built with MERN stack",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd backend && npm run dev",
+    "client": "cd frontend && npm start",
+    "build": "cd frontend && npm run build",
+    "install-server": "cd backend && npm install",
+    "install-client": "cd frontend && npm install",
+    "install-all": "npm run install-server && npm run install-client",
+    "heroku-postbuild": "npm run install-all && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/expense-management-mern.git"
+  },
+  "keywords": [
+    "expense-management",
+    "mern-stack",
+    "react",
+    "nodejs",
+    "mongodb",
+    "express",
+    "ocr",
+    "approval-workflow"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
