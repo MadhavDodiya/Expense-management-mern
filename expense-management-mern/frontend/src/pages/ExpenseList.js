@@ -41,19 +41,27 @@ const ExpenseList = () => {
   };
 
   const applyFilters = () => {
-    setFilters(localFilters);
+    setFilters({ ...localFilters, page: 1 });
   };
 
   const resetFilters = () => {
     const emptyFilters = { status: 'ALL', category: 'ALL', startDate: '', endDate: '' };
     setLocalFilters(emptyFilters);
-    setFilters(emptyFilters);
+    setFilters({ ...emptyFilters, page: 1 });
   };
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
       await deleteExpense(id);
     }
+  };
+
+  const currentUserId = user?.id || user?._id;
+
+  const getExpenseOwnerId = (expense) => {
+    if (!expense?.user) return null;
+    if (typeof expense.user === 'string') return expense.user;
+    return expense.user._id || expense.user.id || null;
   };
 
   const categories = ['TRAVEL', 'FOOD', 'ACCOMMODATION', 'TRANSPORT', 'OFFICE_SUPPLIES', 'SOFTWARE', 'TRAINING', 'ENTERTAINMENT', 'OTHER'];
@@ -166,7 +174,13 @@ const ExpenseList = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {expenses.map(expense => (
+                    {expenses.map((expense) => {
+                      const expenseOwnerId = getExpenseOwnerId(expense);
+                      const canManageOwnExpense =
+                        (expense.status === 'PENDING' || expense.status === 'DRAFT') &&
+                        String(expenseOwnerId || '') === String(currentUserId || '');
+
+                      return (
                       <tr key={expense._id}>
                         {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
                           <td>
@@ -218,8 +232,7 @@ const ExpenseList = () => {
                             <Link to={`/expenses/${expense._id}`} className="btn btn-outline-primary btn-sm">
                               <i className="fas fa-eye"></i>
                             </Link>
-                            {(expense.status === 'PENDING' || expense.status === 'DRAFT') && 
-                             expense.user._id === user?.id && (
+                            {canManageOwnExpense && (
                               <>
                                 <Link to={`/expenses/${expense._id}/edit`} className="btn btn-outline-secondary btn-sm">
                                   <i className="fas fa-edit"></i>
@@ -235,7 +248,8 @@ const ExpenseList = () => {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

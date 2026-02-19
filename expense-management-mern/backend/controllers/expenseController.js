@@ -16,12 +16,44 @@ const createExpense = async (req, res) => {
       ocrData
     } = req.body;
 
+    // Validate payload early to avoid generic 500 errors
+    if (!title || !description || !amount || !currency || !category || !expenseDate) {
+      return res.status(400).json({ message: 'Please provide all required expense fields' });
+    }
+
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      return res.status(400).json({ message: 'Amount must be a valid number greater than 0' });
+    }
+
+    const parsedExpenseDate = new Date(expenseDate);
+    if (Number.isNaN(parsedExpenseDate.getTime())) {
+      return res.status(400).json({ message: 'Expense date is invalid' });
+    }
+
     // Convert amount to company currency if different
     const user = await User.findById(req.user.id).populate('company');
-    let convertedAmount = amount;
+    if (!user || !user.company) {
+      return res.status(400).json({ message: 'User company information is missing' });
+    }
+
+    let convertedAmount = numericAmount;
 
     if (currency !== user.company.currency) {
-      convertedAmount = await convertCurrency(amount, currency, user.company.currency);
+      convertedAmount = await convertCurrency(numericAmount, currency, user.company.currency);
+    }
+
+    let parsedOcrData = null;
+    if (ocrData) {
+      if (typeof ocrData === 'string') {
+        try {
+          parsedOcrData = JSON.parse(ocrData);
+        } catch (parseError) {
+          return res.status(400).json({ message: 'OCR data format is invalid' });
+        }
+      } else {
+        parsedOcrData = ocrData;
+      }
     }
 
     // Create expense
@@ -30,13 +62,13 @@ const createExpense = async (req, res) => {
       company: req.user.company,
       title,
       description,
-      amount,
+      amount: numericAmount,
       currency,
       convertedAmount,
       category,
-      expenseDate: new Date(expenseDate),
+      expenseDate: parsedExpenseDate,
       receipts: [],
-      ocrData: ocrData || null
+      ocrData: parsedOcrData
     });
 
     // Handle file uploads
@@ -83,7 +115,9 @@ const createExpense = async (req, res) => {
 // Get user expenses
 const getUserExpenses = async (req, res) => {
   try {
-    const { status, category, startDate, endDate, page = 1, limit = 10 } = req.query;
+    const { status, category, startDate, endDate } = req.query;
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit, 10) || 10, 1);
 
     const filter = { user: req.user.id };
 
@@ -104,7 +138,7 @@ const getUserExpenses = async (req, res) => {
     const expenses = await Expense.find(filter)
       .populate('approvals.approver', 'firstName lastName email')
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
+      .limit(limit)
       .skip((page - 1) * limit);
 
     const total = await Expense.countDocuments(filter);
@@ -124,7 +158,9 @@ const getUserExpenses = async (req, res) => {
 // Get all company expenses (Admin/Manager)
 const getCompanyExpenses = async (req, res) => {
   try {
-    const { status, category, userId, startDate, endDate, page = 1, limit = 10 } = req.query;
+    const { status, category, userId, startDate, endDate } = req.query;
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit, 10) || 10, 1);
 
     const filter = { company: req.user.company };
 
@@ -162,7 +198,7 @@ const getCompanyExpenses = async (req, res) => {
       .populate('user', 'firstName lastName email employeeId department')
       .populate('approvals.approver', 'firstName lastName email')
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
+      .limit(limit)
       .skip((page - 1) * limit);
 
     const total = await Expense.countDocuments(filter);
@@ -197,7 +233,11 @@ const getExpense = async (req, res) => {
       expense.user._id.toString() === req.user.id || // Own expense
       req.user.role === 'ADMIN' || // Admin can view all
       (req.user.role === 'MANAGER' && await isUserInTeam(expense.user._id, req.user.id)) || // Manager can view team expenses
-      expense.approvals.some(approval => approval.approver._id.toString() === req.user.id); // Approver can view
+      expense.approvals.some((approval) => {
+        if (!approval?.approver) return false;
+        const approverId = approval.approver._id ? approval.approver._id.toString() : approval.approver.toString();
+        return approverId === req.user.id;
+      }); // Approver can view
 
     if (!canView) {
       return res.status(403).json({ message: 'Access denied' });
@@ -238,20 +278,31 @@ const updateExpense = async (req, res) => {
 
     // Convert amount if currency changed
     const user = await User.findById(req.user.id).populate('company');
-    let convertedAmount = amount;
+    const numericAmount = amount !== undefined ? Number(amount) : expense.amount;
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      return res.status(400).json({ message: 'Amount must be a valid number greater than 0' });
+    }
 
-    if (currency !== user.company.currency) {
-      convertedAmount = await convertCurrency(amount, currency, user.company.currency);
+    let convertedAmount = numericAmount;
+
+    if (currency && currency !== user.company.currency) {
+      convertedAmount = await convertCurrency(numericAmount, currency, user.company.currency);
     }
 
     // Update expense
     expense.title = title || expense.title;
     expense.description = description || expense.description;
-    expense.amount = amount || expense.amount;
+    expense.amount = numericAmount;
     expense.currency = currency || expense.currency;
     expense.convertedAmount = convertedAmount;
     expense.category = category || expense.category;
-    expense.expenseDate = expenseDate ? new Date(expenseDate) : expense.expenseDate;
+    if (expenseDate) {
+      const parsedUpdateDate = new Date(expenseDate);
+      if (Number.isNaN(parsedUpdateDate.getTime())) {
+        return res.status(400).json({ message: 'Expense date is invalid' });
+      }
+      expense.expenseDate = parsedUpdateDate;
+    }
 
     // Handle new file uploads
     if (req.files && req.files.length > 0) {

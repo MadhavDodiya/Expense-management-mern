@@ -149,7 +149,10 @@ export const ExpenseProvider = ({ children }) => {
       return res.data.expense;
     } catch (error) {
       console.error('Create expense error:', error);
-      const message = error.response?.data?.message || 'Failed to create expense';
+      const message =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        'Failed to create expense';
       toast.error(message);
       return null;
     } finally {
@@ -170,7 +173,10 @@ export const ExpenseProvider = ({ children }) => {
       return res.data.expense;
     } catch (error) {
       console.error('Update expense error:', error);
-      const message = error.response?.data?.message || 'Failed to update expense';
+      const message =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        'Failed to update expense';
       toast.error(message);
       return null;
     } finally {

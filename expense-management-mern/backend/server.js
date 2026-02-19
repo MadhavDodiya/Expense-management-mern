@@ -12,8 +12,8 @@ const expenseRoutes = require('./routes/expenses');
 const approvalRoutes = require('./routes/approvals');
 const ocrRoutes = require('./routes/ocr');
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from backend/.env regardless of launch directory
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 

@@ -113,7 +113,7 @@ const ExpenseSchema = new mongoose.Schema({
   recurringPeriod: {
     type: String,
     enum: ['WEEKLY', 'MONTHLY', 'QUARTERLY'],
-    default: null
+    default: undefined
   }
 }, {
   timestamps: true

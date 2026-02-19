@@ -1,22 +1,56 @@
 const Expense = require('../models/Expense');
 const User = require('../models/User');
 const ApprovalFlow = require('../models/ApprovalFlow');
+const mongoose = require('mongoose');
 
 // Get pending approvals for current user
 const getPendingApprovals = async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit, 10) || 10, 1);
 
-    const filter = {
-      'approvals.approver': req.user.id,
-      'approvals.status': 'PENDING'
-    };
+    let filter;
+    if (req.user.role === 'ADMIN') {
+      // Admin can review all company pending expenses
+      filter = {
+        company: req.user.company,
+        status: 'PENDING'
+      };
+    } else {
+      // Manager can review assigned pending approvals and team pending expenses without an approval flow
+      const teamMembers = await User.find({
+        company: req.user.company,
+        manager: req.user.id
+      }).select('_id');
+
+      const teamMemberIds = teamMembers.map((member) => member._id.toString());
+      teamMemberIds.push(req.user.id.toString());
+
+      filter = {
+        company: req.user.company,
+        status: 'PENDING',
+        $or: [
+          {
+            approvals: {
+              $elemMatch: {
+                approver: req.user.id,
+                status: 'PENDING'
+              }
+            }
+          },
+          {
+            approvals: { $size: 0 },
+            user: { $in: teamMemberIds }
+          }
+        ]
+      };
+    }
 
     const expenses = await Expense.find(filter)
       .populate('user', 'firstName lastName email employeeId department')
       .populate('approvals.approver', 'firstName lastName email')
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
+      .limit(limit)
       .skip((page - 1) * limit);
 
     const total = await Expense.countDocuments(filter);
@@ -38,6 +72,9 @@ const processApproval = async (req, res) => {
   try {
     const { expenseId } = req.params;
     const { decision, comments } = req.body; // decision: 'APPROVED' or 'REJECTED'
+    if (!['APPROVED', 'REJECTED'].includes(decision)) {
+      return res.status(400).json({ message: 'Invalid decision value' });
+    }
 
     const expense = await Expense.findById(expenseId)
       .populate('user', 'firstName lastName email')
@@ -46,22 +83,44 @@ const processApproval = async (req, res) => {
     if (!expense) {
       return res.status(404).json({ message: 'Expense not found' });
     }
+    if (expense.status !== 'PENDING') {
+      return res.status(400).json({ message: 'Only pending expenses can be processed' });
+    }
+
+    // Basic company scope check
+    if (expense.company.toString() !== req.user.company.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
 
     // Find the approval entry for current user
     const approvalIndex = expense.approvals.findIndex(
-      approval => 
-        approval.approver.toString() === req.user.id && 
+      (approval) => {
+        if (!approval?.approver) return false;
+        const approverId = approval.approver._id ? approval.approver._id.toString() : approval.approver.toString();
+        return approverId === req.user.id &&
         approval.status === 'PENDING'
+      }
     );
 
-    if (approvalIndex === -1) {
+    if (approvalIndex === -1 && expense.approvals.length > 0) {
       return res.status(400).json({ message: 'No pending approval found for this user' });
     }
 
-    // Update approval
-    expense.approvals[approvalIndex].status = decision;
-    expense.approvals[approvalIndex].comments = comments;
-    expense.approvals[approvalIndex].actionDate = new Date();
+    if (approvalIndex === -1 && expense.approvals.length === 0) {
+      // Fallback: allow manual approval when no approval chain exists
+      expense.approvals.push({
+        approver: req.user.id,
+        status: decision,
+        comments,
+        actionDate: new Date(),
+        stepNumber: 0
+      });
+    } else {
+      // Update existing approval
+      expense.approvals[approvalIndex].status = decision;
+      expense.approvals[approvalIndex].comments = comments;
+      expense.approvals[approvalIndex].actionDate = new Date();
+    }
 
     if (decision === 'REJECTED') {
       // If rejected, update expense status
@@ -93,21 +152,32 @@ const processApproval = async (req, res) => {
 // Get approval history
 const getApprovalHistory = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status } = req.query;
+    const { status } = req.query;
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit, 10) || 10, 1);
 
-    const filter = {
-      'approvals.approver': req.user.id
-    };
+    const filter = {};
 
     if (status && status !== 'ALL') {
-      filter['approvals.status'] = status;
+      filter.approvals = {
+        $elemMatch: {
+          approver: req.user.id,
+          status
+        }
+      };
+    } else {
+      filter.approvals = {
+        $elemMatch: {
+          approver: req.user.id
+        }
+      };
     }
 
     const expenses = await Expense.find(filter)
       .populate('user', 'firstName lastName email employeeId')
       .populate('approvals.approver', 'firstName lastName email')
       .sort({ 'approvals.actionDate': -1 })
-      .limit(limit * 1)
+      .limit(limit)
       .skip((page - 1) * limit);
 
     // Filter out only the approvals by current user
@@ -140,12 +210,13 @@ const getApprovalHistory = async (req, res) => {
 const getApprovalAnalytics = async (req, res) => {
   try {
     const userId = req.user.id;
+    const userObjectId = new mongoose.Types.ObjectId(userId);
 
     // Get approval statistics
     const stats = await Expense.aggregate([
       {
         $match: {
-          'approvals.approver': userId
+          'approvals.approver': userObjectId
         }
       },
       {
@@ -153,7 +224,7 @@ const getApprovalAnalytics = async (req, res) => {
       },
       {
         $match: {
-          'approvals.approver': userId
+          'approvals.approver': userObjectId
         }
       },
       {
@@ -167,8 +238,12 @@ const getApprovalAnalytics = async (req, res) => {
 
     // Get pending count
     const pendingCount = await Expense.countDocuments({
-      'approvals.approver': userId,
-      'approvals.status': 'PENDING'
+      approvals: {
+        $elemMatch: {
+          approver: userId,
+          status: 'PENDING'
+        }
+      }
     });
 
     // Get average approval time
@@ -239,6 +314,9 @@ const checkApprovalCompletion = async (expense) => {
       if (percentageRule.enabled) {
         const approvedCount = expense.approvals.filter(approval => approval.status === 'APPROVED').length;
         const totalApprovals = expense.approvals.length;
+        if (totalApprovals === 0) {
+          return true;
+        }
         const approvalPercentage = (approvedCount / totalApprovals) * 100;
 
         if (approvalPercentage >= percentageRule.percentage) {
@@ -257,6 +335,9 @@ const checkApprovalCompletion = async (expense) => {
         const percentageApproved = percentageRule.enabled && (() => {
           const approvedCount = expense.approvals.filter(approval => approval.status === 'APPROVED').length;
           const totalApprovals = expense.approvals.length;
+          if (totalApprovals === 0) {
+            return true;
+          }
           return (approvedCount / totalApprovals) * 100 >= percentageRule.percentage;
         })();
 
