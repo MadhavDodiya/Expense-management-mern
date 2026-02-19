@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useExpense } from '../context/ExpenseContext';
@@ -18,21 +18,15 @@ const AdminDashboard = () => {
     monthlyExpenses: []
   });
 
+  const loadDashboardData = useCallback(async () => {
+    await getCompanyExpenses({ limit: 100 });
+  }, [getCompanyExpenses]);
+
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [loadDashboardData]);
 
-  const loadDashboardData = async () => {
-    await getCompanyExpenses({ limit: 100 });
-  };
-
-  useEffect(() => {
-    if (expenses.length > 0) {
-      calculateStats();
-    }
-  }, [expenses]);
-
-  const calculateStats = () => {
+  const calculateStats = useCallback(() => {
     const totalExpenses = expenses.length;
     const pendingApprovals = expenses.filter(exp => exp.status === 'PENDING').length;
     const approvedExpenses = expenses.filter(exp => exp.status === 'APPROVED').length;
@@ -52,7 +46,13 @@ const AdminDashboard = () => {
       totalAmount,
       monthlyExpenses: Object.entries(monthlyData).slice(-6)
     });
-  };
+  }, [expenses]);
+
+  useEffect(() => {
+    if (expenses.length > 0) {
+      calculateStats();
+    }
+  }, [expenses, calculateStats]);
 
   // Chart data
   const statusChartData = {

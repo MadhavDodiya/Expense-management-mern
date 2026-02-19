@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
@@ -77,7 +77,7 @@ export const ExpenseProvider = ({ children }) => {
   const [state, dispatch] = useReducer(expenseReducer, initialState);
 
   // Get user expenses
-  const getUserExpenses = async (filters = {}) => {
+  const getUserExpenses = useCallback(async (filters = {}) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
 
@@ -96,10 +96,10 @@ export const ExpenseProvider = ({ children }) => {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
   // Get company expenses (Admin/Manager)
-  const getCompanyExpenses = async (filters = {}) => {
+  const getCompanyExpenses = useCallback(async (filters = {}) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
 
@@ -118,10 +118,10 @@ export const ExpenseProvider = ({ children }) => {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
   // Get single expense
-  const getExpense = async (id) => {
+  const getExpense = useCallback(async (id) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       const res = await axios.get(`/api/expenses/${id}`);
@@ -134,10 +134,10 @@ export const ExpenseProvider = ({ children }) => {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
   // Create expense
-  const createExpense = async (expenseData) => {
+  const createExpense = useCallback(async (expenseData) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       const res = await axios.post('/api/expenses', expenseData, {
@@ -155,10 +155,10 @@ export const ExpenseProvider = ({ children }) => {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
   // Update expense
-  const updateExpense = async (id, expenseData) => {
+  const updateExpense = useCallback(async (id, expenseData) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       const res = await axios.put(`/api/expenses/${id}`, expenseData, {
@@ -176,10 +176,10 @@ export const ExpenseProvider = ({ children }) => {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
   // Delete expense
-  const deleteExpense = async (id) => {
+  const deleteExpense = useCallback(async (id) => {
     try {
       await axios.delete(`/api/expenses/${id}`);
       dispatch({ type: 'DELETE_EXPENSE', payload: id });
@@ -191,10 +191,10 @@ export const ExpenseProvider = ({ children }) => {
       toast.error(message);
       return false;
     }
-  };
+  }, []);
 
   // Process OCR
-  const processOCR = async (file) => {
+  const processOCR = useCallback(async (file) => {
     try {
       const formData = new FormData();
       formData.append('receipt', file);
@@ -212,10 +212,10 @@ export const ExpenseProvider = ({ children }) => {
       toast.error('Failed to process receipt');
       return null;
     }
-  };
+  }, []);
 
   // Get pending approvals
-  const getPendingApprovals = async (filters = {}) => {
+  const getPendingApprovals = useCallback(async (filters = {}) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
 
@@ -234,10 +234,10 @@ export const ExpenseProvider = ({ children }) => {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
   // Process approval
-  const processApproval = async (expenseId, decision, comments) => {
+  const processApproval = useCallback(async (expenseId, decision, comments) => {
     try {
       const res = await axios.post(`/api/approvals/${expenseId}`, {
         decision,
@@ -258,9 +258,17 @@ export const ExpenseProvider = ({ children }) => {
       toast.error(message);
       return null;
     }
-  };
+  }, [state.pendingApprovals]);
 
-  const value = {
+  const setFilters = useCallback((filters) => {
+    dispatch({ type: 'SET_FILTERS', payload: filters });
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    dispatch({ type: 'RESET_FILTERS' });
+  }, []);
+
+  const value = useMemo(() => ({
     ...state,
     getUserExpenses,
     getCompanyExpenses,
@@ -271,9 +279,9 @@ export const ExpenseProvider = ({ children }) => {
     processOCR,
     getPendingApprovals,
     processApproval,
-    setFilters: (filters) => dispatch({ type: 'SET_FILTERS', payload: filters }),
-    resetFilters: () => dispatch({ type: 'RESET_FILTERS' })
-  };
+    setFilters,
+    resetFilters
+  }), [state, getUserExpenses, getCompanyExpenses, getExpense, createExpense, updateExpense, deleteExpense, processOCR, getPendingApprovals, processApproval, setFilters, resetFilters]);
 
   return (
     <ExpenseContext.Provider value={value}>

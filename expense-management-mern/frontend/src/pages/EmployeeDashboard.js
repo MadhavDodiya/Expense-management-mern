@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useExpense } from '../context/ExpenseContext';
@@ -13,21 +13,15 @@ const EmployeeDashboard = () => {
     totalAmount: 0
   });
 
+  const loadDashboardData = useCallback(async () => {
+    await getUserExpenses({ limit: 20 });
+  }, [getUserExpenses]);
+
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [loadDashboardData]);
 
-  const loadDashboardData = async () => {
-    await getUserExpenses({ limit: 20 });
-  };
-
-  useEffect(() => {
-    if (expenses.length > 0) {
-      calculateStats();
-    }
-  }, [expenses]);
-
-  const calculateStats = () => {
+  const calculateStats = useCallback(() => {
     const totalExpenses = expenses.length;
     const pendingExpenses = expenses.filter(exp => exp.status === 'PENDING').length;
     const approvedExpenses = expenses.filter(exp => exp.status === 'APPROVED').length;
@@ -39,7 +33,13 @@ const EmployeeDashboard = () => {
       approvedExpenses,
       totalAmount
     });
-  };
+  }, [expenses]);
+
+  useEffect(() => {
+    if (expenses.length > 0) {
+      calculateStats();
+    }
+  }, [expenses, calculateStats]);
 
   return (
     <div className="fade-in">

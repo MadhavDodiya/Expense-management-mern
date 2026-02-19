@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
@@ -65,16 +65,16 @@ export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   // Set auth header
-  const setAuthToken = (token) => {
+  const setAuthToken = useCallback((token) => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
       delete axios.defaults.headers.common['Authorization'];
     }
-  };
+  }, []);
 
   // Load user
-  const loadUser = async () => {
+  const loadUser = useCallback(async () => {
     const token = localStorage.getItem('token');
 
     if (token) {
@@ -90,10 +90,10 @@ export const AuthProvider = ({ children }) => {
     } else {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, [setAuthToken]);
 
   // Login
-  const login = async (credentials) => {
+  const login = useCallback(async (credentials) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
 
@@ -110,10 +110,10 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'AUTH_ERROR' });
       return false;
     }
-  };
+  }, [setAuthToken]);
 
   // Register
-  const register = async (userData) => {
+  const register = useCallback(async (userData) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
 
@@ -130,17 +130,17 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'AUTH_ERROR' });
       return false;
     }
-  };
+  }, [setAuthToken]);
 
   // Logout
-  const logout = () => {
+  const logout = useCallback(() => {
     dispatch({ type: 'LOGOUT' });
     setAuthToken(null);
     toast.info('Logged out successfully');
-  };
+  }, [setAuthToken]);
 
   // Change password
-  const changePassword = async (passwords) => {
+  const changePassword = useCallback(async (passwords) => {
     try {
       await axios.post('/api/auth/change-password', passwords);
       toast.success('Password changed successfully');
@@ -150,11 +150,11 @@ export const AuthProvider = ({ children }) => {
       toast.error(message);
       return false;
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadUser();
-  }, []);
+  }, [loadUser]);
 
   const value = {
     ...state,

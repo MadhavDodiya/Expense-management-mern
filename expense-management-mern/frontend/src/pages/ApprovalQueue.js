@@ -8,7 +8,7 @@ const ApprovalQueue = () => {
 
   useEffect(() => {
     getPendingApprovals();
-  }, []);
+  }, [getPendingApprovals]);
 
   const handleApproval = async (expenseId, decision) => {
     await processApproval(expenseId, decision, comments);

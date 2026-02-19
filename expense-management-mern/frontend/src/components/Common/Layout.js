@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { user } = useAuth();
-  const navigate = useNavigate();
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);

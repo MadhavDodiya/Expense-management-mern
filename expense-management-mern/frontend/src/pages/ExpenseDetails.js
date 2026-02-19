@@ -10,7 +10,7 @@ const ExpenseDetails = () => {
     if (id) {
       getExpense(id);
     }
-  }, [id]);
+  }, [id, getExpense]);
 
   if (loading) {
     return (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 
@@ -26,12 +26,7 @@ const UserManagement = () => {
     isActive: true
   });
 
-  useEffect(() => {
-    loadUsers();
-    loadManagers();
-  }, []);
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -47,20 +42,24 @@ const UserManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
-  const loadManagers = async () => {
+  const loadManagers = useCallback(async () => {
     try {
       const response = await axios.get('/api/users/managers');
       setManagers(response.data.managers);
     } catch (error) {
       console.error('Error loading managers:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadUsers();
-  }, [filters]);
+  }, [loadUsers]);
+
+  useEffect(() => {
+    loadManagers();
+  }, [loadManagers]);
 
   const handleFilterChange = (e) => {
     setFilters({ ...filters, [e.target.name]: e.target.value });

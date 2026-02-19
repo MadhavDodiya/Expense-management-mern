@@ -45,18 +45,18 @@ const Navbar = ({ onToggleSidebar, sidebarOpen }) => {
             </button>
             <ul className="dropdown-menu dropdown-menu-end">
               <li><h6 className="dropdown-header">Notifications</h6></li>
-              <li><a className="dropdown-item" href="#">
+              <li><button type="button" className="dropdown-item">
                 <i className="fas fa-check-circle text-success me-2"></i>
                 Expense approved
-              </a></li>
-              <li><a className="dropdown-item" href="#">
+              </button></li>
+              <li><button type="button" className="dropdown-item">
                 <i className="fas fa-clock text-warning me-2"></i>
                 Pending approval
-              </a></li>
-              <li><a className="dropdown-item" href="#">
+              </button></li>
+              <li><button type="button" className="dropdown-item">
                 <i className="fas fa-times-circle text-danger me-2"></i>
                 Expense rejected
-              </a></li>
+              </button></li>
             </ul>
           </div>
 

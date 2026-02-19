@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useExpense } from '../context/ExpenseContext';
 import { useAuth } from '../context/AuthContext';
 
 const ExpenseForm = () => {
   const { user } = useAuth();
-  const { createExpense, updateExpense, getExpense, processOCR, currentExpense } = useExpense();
+  const { createExpense, updateExpense, getExpense, processOCR } = useExpense();
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = Boolean(id);
@@ -22,13 +22,7 @@ const ExpenseForm = () => {
   const [receipts, setReceipts] = useState([]);
   const [ocrProcessing, setOcrProcessing] = useState(false);
 
-  useEffect(() => {
-    if (isEdit && id) {
-      loadExpense();
-    }
-  }, [isEdit, id]);
-
-  const loadExpense = async () => {
+  const loadExpense = useCallback(async () => {
     const expense = await getExpense(id);
     if (expense) {
       setFormData({
@@ -40,7 +34,13 @@ const ExpenseForm = () => {
         expenseDate: new Date(expense.expenseDate).toISOString().split('T')[0]
       });
     }
-  };
+  }, [getExpense, id]);
+
+  useEffect(() => {
+    if (isEdit && id) {
+      loadExpense();
+    }
+  }, [isEdit, id, loadExpense]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

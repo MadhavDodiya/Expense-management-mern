@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useExpense } from '../context/ExpenseContext';
 import { useAuth } from '../context/AuthContext';
@@ -23,17 +23,17 @@ const ExpenseList = () => {
     endDate: ''
   });
 
-  useEffect(() => {
-    loadExpenses();
-  }, [filters]);
-
-  const loadExpenses = () => {
+  const loadExpenses = useCallback(() => {
     if (user?.role === 'ADMIN' || user?.role === 'MANAGER') {
       getCompanyExpenses(filters);
     } else {
       getUserExpenses(filters);
     }
-  };
+  }, [user?.role, getCompanyExpenses, getUserExpenses, filters]);
+
+  useEffect(() => {
+    loadExpenses();
+  }, [loadExpenses]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
