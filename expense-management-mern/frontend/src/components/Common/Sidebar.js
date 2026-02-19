@@ -83,7 +83,7 @@ const Sidebar = ({ isOpen }) => {
             key={index}
             to={item.path}
             className={`nav-link text-white mb-2 d-flex align-items-center ${
-              isActive(item.path) ? 'active bg-white text-primary' : ''
+              isActive(item.path) ? 'active bg-green-500 text-primary' : ''
             }`}
             style={{ 
               borderRadius: '10px',
