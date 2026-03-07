@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 const ExpenseDetails = () => {
   const { id } = useParams();
   const { getExpense, currentExpense, loading, getExpenseReceipt, downloadExpenseReceipt } = useExpense();
-  const { formatDate, formatDateTime } = useAuth();
+  const { formatDate, formatDateTime, formatCurrency } = useAuth();
   const apiBaseUrl = (process.env.REACT_APP_API_URL || '').replace(/\/$/, '');
   const [receiptPreview, setReceiptPreview] = useState('');
   const [showReceipt, setShowReceipt] = useState(false);
@@ -104,7 +104,7 @@ const ExpenseDetails = () => {
 
               <div className="row">
                 <div className="col-md-6">
-                  <p><strong>Amount:</strong> ${currentExpense.amount} {currentExpense.currency}</p>
+                  <p><strong>Amount:</strong> {formatCurrency(currentExpense.amount, currentExpense.currency)}</p>
                   <p><strong>Category:</strong> {currentExpense.category.replace('_', ' ')}</p>
                 </div>
                 <div className="col-md-6">

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useExpense } from '../context/ExpenseContext';
+import { useAuth } from '../context/AuthContext';
 
 const ApprovalQueue = () => {
   const { getPendingApprovals, processApproval, pendingApprovals, loading } = useExpense();
+  const { user, formatCurrency } = useAuth();
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [comments, setComments] = useState('');
 
@@ -42,7 +44,7 @@ const ApprovalQueue = () => {
 
                   <div className="row mb-3">
                     <div className="col-6">
-                      <strong>Amount:</strong> ${expense.convertedAmount}
+                      <strong>Amount:</strong> {formatCurrency(expense.convertedAmount, user?.company?.currency || 'USD')}
                     </div>
                     <div className="col-6">
                       <strong>Category:</strong> {expense.category}

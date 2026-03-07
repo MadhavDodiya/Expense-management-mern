@@ -5,6 +5,14 @@ const Company = require('../models/Company');
 const { getCountryCurrency } = require('../utils/currencyHelper');
 const { sendPasswordResetEmail } = require('../utils/emailService');
 
+const SUPPORTED_LANGUAGE_CODES = new Set([
+  'en-US', 'en-GB', 'es-ES', 'es-MX', 'fr-FR', 'de-DE', 'it-IT', 'pt-PT', 'pt-BR', 'ru-RU',
+  'zh-CN', 'zh-TW', 'ja-JP', 'ko-KR', 'hi-IN', 'bn-BD', 'ur-PK', 'ar-SA', 'ar-AE', 'tr-TR',
+  'nl-NL', 'sv-SE', 'da-DK', 'no-NO', 'fi-FI', 'pl-PL', 'cs-CZ', 'hu-HU', 'ro-RO', 'el-GR',
+  'he-IL', 'th-TH', 'vi-VN', 'id-ID', 'ms-MY', 'tl-PH', 'uk-UA', 'sr-RS', 'hr-HR', 'sk-SK',
+  'sl-SI', 'bg-BG', 'lt-LT', 'lv-LV', 'et-EE', 'ca-ES', 'fa-IR', 'sw-KE', 'ta-IN', 'te-IN'
+]);
+
 const mapUserResponse = (user) => ({
   id: user._id,
   firstName: user.firstName,
@@ -172,7 +180,12 @@ const updatePreferences = async (req, res) => {
 
     const updatedPreferences = { ...(user.preferences?.toObject?.() || user.preferences || {}) };
 
-    if (language) updatedPreferences.language = language;
+    if (language) {
+      if (!SUPPORTED_LANGUAGE_CODES.has(language)) {
+        return res.status(400).json({ message: 'Unsupported language. Please select a supported locale.' });
+      }
+      updatedPreferences.language = language;
+    }
     if (timezone) updatedPreferences.timezone = timezone;
     if (emailNotifications !== undefined) updatedPreferences.emailNotifications = Boolean(emailNotifications);
     if (approvalNotifications !== undefined) updatedPreferences.approvalNotifications = Boolean(approvalNotifications);

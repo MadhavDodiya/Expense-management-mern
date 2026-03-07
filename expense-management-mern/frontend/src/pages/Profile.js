@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 
 const Profile = () => {
-  const { user, changePassword, updateProfile, updatePreferences } = useAuth();
+  const { user, changePassword, updateProfile, updatePreferences, supportedLanguages } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -329,8 +329,11 @@ const Profile = () => {
                       value={preferences.language}
                       onChange={handlePreferenceChange}
                     >
-                      <option value="en-US">English (US)</option>
-                      <option value="hi-IN">Hindi (India)</option>
+                      {supportedLanguages.map((language) => (
+                        <option key={language.code} value={language.code}>
+                          {language.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="col-md-6 mb-3">

@@ -8,7 +8,7 @@ import { Doughnut, Bar } from 'react-chartjs-2';
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
+  const { user, formatDate, formatCurrency } = useAuth();
   const { getCompanyExpenses, expenses } = useExpense();
   const [stats, setStats] = useState({
     totalExpenses: 0,
@@ -35,7 +35,7 @@ const AdminDashboard = () => {
     // Monthly expenses for chart
     const monthlyData = {};
     expenses.forEach(exp => {
-      const month = new Date(exp.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      const month = formatDate(exp.createdAt, { month: 'short', year: 'numeric' });
       monthlyData[month] = (monthlyData[month] || 0) + exp.convertedAmount;
     });
 
@@ -46,7 +46,7 @@ const AdminDashboard = () => {
       totalAmount,
       monthlyExpenses: Object.entries(monthlyData).slice(-6)
     });
-  }, [expenses]);
+  }, [expenses, formatDate]);
 
   useEffect(() => {
     if (expenses.length > 0) {
@@ -132,7 +132,7 @@ const AdminDashboard = () => {
           <div className="card dashboard-stat">
             <div className="card-body text-center">
               <i className="fas fa-dollar-sign fa-2x mb-3"></i>
-              <h3 className="mb-1">${stats.totalAmount.toLocaleString()}</h3>
+              <h3 className="mb-1">{formatCurrency(stats.totalAmount, user?.company?.currency || 'USD')}</h3>
               <p className="mb-0">Total Amount</p>
             </div>
           </div>
@@ -218,7 +218,7 @@ const AdminDashboard = () => {
                           </td>
                           <td>
                             <span className="fw-semibold">
-                              ${expense.convertedAmount.toLocaleString()}
+                              {formatCurrency(expense.convertedAmount, user?.company?.currency || expense.currency || 'USD')}
                             </span>
                             <br />
                             <small className="text-muted">{user?.company?.currency}</small>
@@ -233,7 +233,7 @@ const AdminDashboard = () => {
                           </td>
                           <td>
                             <small>
-                              {new Date(expense.expenseDate).toLocaleDateString()}
+                              {formatDate(expense.expenseDate)}
                             </small>
                           </td>
                         </tr>

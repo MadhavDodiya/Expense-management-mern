@@ -5,7 +5,7 @@ import { useExpense } from '../context/ExpenseContext';
 import { useAuth } from '../context/AuthContext';
 
 const ExpenseList = () => {
-  const { user, formatDate } = useAuth();
+  const { user, formatDate, formatCurrency } = useAuth();
   const { 
     expenses, 
     getUserExpenses, 
@@ -315,7 +315,7 @@ const ExpenseList = () => {
                         <td>
                           <div>
                             <span className="fw-semibold">
-                              ${expense.amount.toLocaleString()}
+                              {formatCurrency(expense.amount, expense.currency)}
                             </span>
                             <br />
                             <small className="text-muted">{expense.currency}</small>

@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useExpense } from '../context/ExpenseContext';
 
 const EmployeeDashboard = () => {
-  const { user } = useAuth();
+  const { user, formatDate, formatCurrency } = useAuth();
   const { getUserExpenses, expenses } = useExpense();
   const [stats, setStats] = useState({
     totalExpenses: 0,
@@ -94,7 +94,7 @@ const EmployeeDashboard = () => {
           <div className="card dashboard-stat">
             <div className="card-body text-center">
               <i className="fas fa-dollar-sign fa-2x mb-3"></i>
-              <h3 className="mb-1">${stats.totalAmount.toLocaleString()}</h3>
+              <h3 className="mb-1">{formatCurrency(stats.totalAmount, user?.company?.currency || 'USD')}</h3>
               <p className="mb-0">Total Amount</p>
             </div>
           </div>
@@ -137,7 +137,7 @@ const EmployeeDashboard = () => {
                           </td>
                           <td>
                             <span className="fw-semibold">
-                              ${expense.amount.toLocaleString()}
+                              {formatCurrency(expense.amount, expense.currency)}
                             </span>
                             <br />
                             <small className="text-muted">{expense.currency}</small>
@@ -152,7 +152,7 @@ const EmployeeDashboard = () => {
                           </td>
                           <td>
                             <small>
-                              {new Date(expense.expenseDate).toLocaleDateString()}
+                              {formatDate(expense.expenseDate)}
                             </small>
                           </td>
                           <td>

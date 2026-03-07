@@ -5,6 +5,59 @@ import { toast } from 'react-toastify';
 // Create context
 const AuthContext = createContext();
 
+export const SUPPORTED_LANGUAGES = [
+  { code: 'en-US', label: 'English (United States)' },
+  { code: 'en-GB', label: 'English (United Kingdom)' },
+  { code: 'es-ES', label: 'Spanish (Spain)' },
+  { code: 'es-MX', label: 'Spanish (Mexico)' },
+  { code: 'fr-FR', label: 'French (France)' },
+  { code: 'de-DE', label: 'German (Germany)' },
+  { code: 'it-IT', label: 'Italian (Italy)' },
+  { code: 'pt-PT', label: 'Portuguese (Portugal)' },
+  { code: 'pt-BR', label: 'Portuguese (Brazil)' },
+  { code: 'ru-RU', label: 'Russian (Russia)' },
+  { code: 'zh-CN', label: 'Chinese (Simplified, China)' },
+  { code: 'zh-TW', label: 'Chinese (Traditional, Taiwan)' },
+  { code: 'ja-JP', label: 'Japanese (Japan)' },
+  { code: 'ko-KR', label: 'Korean (South Korea)' },
+  { code: 'hi-IN', label: 'Hindi (India)' },
+  { code: 'bn-BD', label: 'Bengali (Bangladesh)' },
+  { code: 'ur-PK', label: 'Urdu (Pakistan)' },
+  { code: 'ar-SA', label: 'Arabic (Saudi Arabia)' },
+  { code: 'ar-AE', label: 'Arabic (UAE)' },
+  { code: 'tr-TR', label: 'Turkish (Turkey)' },
+  { code: 'nl-NL', label: 'Dutch (Netherlands)' },
+  { code: 'sv-SE', label: 'Swedish (Sweden)' },
+  { code: 'da-DK', label: 'Danish (Denmark)' },
+  { code: 'no-NO', label: 'Norwegian (Norway)' },
+  { code: 'fi-FI', label: 'Finnish (Finland)' },
+  { code: 'pl-PL', label: 'Polish (Poland)' },
+  { code: 'cs-CZ', label: 'Czech (Czechia)' },
+  { code: 'hu-HU', label: 'Hungarian (Hungary)' },
+  { code: 'ro-RO', label: 'Romanian (Romania)' },
+  { code: 'el-GR', label: 'Greek (Greece)' },
+  { code: 'he-IL', label: 'Hebrew (Israel)' },
+  { code: 'th-TH', label: 'Thai (Thailand)' },
+  { code: 'vi-VN', label: 'Vietnamese (Vietnam)' },
+  { code: 'id-ID', label: 'Indonesian (Indonesia)' },
+  { code: 'ms-MY', label: 'Malay (Malaysia)' },
+  { code: 'tl-PH', label: 'Filipino (Philippines)' },
+  { code: 'uk-UA', label: 'Ukrainian (Ukraine)' },
+  { code: 'sr-RS', label: 'Serbian (Serbia)' },
+  { code: 'hr-HR', label: 'Croatian (Croatia)' },
+  { code: 'sk-SK', label: 'Slovak (Slovakia)' },
+  { code: 'sl-SI', label: 'Slovenian (Slovenia)' },
+  { code: 'bg-BG', label: 'Bulgarian (Bulgaria)' },
+  { code: 'lt-LT', label: 'Lithuanian (Lithuania)' },
+  { code: 'lv-LV', label: 'Latvian (Latvia)' },
+  { code: 'et-EE', label: 'Estonian (Estonia)' },
+  { code: 'ca-ES', label: 'Catalan (Spain)' },
+  { code: 'fa-IR', label: 'Persian (Iran)' },
+  { code: 'sw-KE', label: 'Swahili (Kenya)' },
+  { code: 'ta-IN', label: 'Tamil (India)' },
+  { code: 'te-IN', label: 'Telugu (India)' }
+];
+
 // Initial state
 const initialState = {
   user: null,
@@ -210,6 +263,22 @@ export const AuthProvider = ({ children }) => {
     }).format(date);
   }, [userLocale, userTimeZone]);
 
+  const formatCurrency = useCallback((value, currency = 'USD', options = {}) => {
+    const amount = Number(value || 0);
+    const safeCurrency = currency || 'USD';
+    try {
+      return new Intl.NumberFormat(userLocale, {
+        style: 'currency',
+        currency: safeCurrency,
+        currencyDisplay: 'symbol',
+        maximumFractionDigits: 2,
+        ...options
+      }).format(amount);
+    } catch (error) {
+      return `${amount.toFixed(2)} ${safeCurrency}`;
+    }
+  }, [userLocale]);
+
   useEffect(() => {
     loadUser();
   }, [loadUser]);
@@ -224,6 +293,8 @@ export const AuthProvider = ({ children }) => {
     updatePreferences,
     formatDate,
     formatDateTime,
+    formatCurrency,
+    supportedLanguages: SUPPORTED_LANGUAGES,
     loadUser
   };
 
