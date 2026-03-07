@@ -2,6 +2,7 @@ const Expense = require('../models/Expense');
 const User = require('../models/User');
 const ApprovalFlow = require('../models/ApprovalFlow');
 const mongoose = require('mongoose');
+const { sendExpenseStatusEmail } = require('../utils/emailService');
 
 // Get pending approvals for current user
 const getPendingApprovals = async (req, res) => {
@@ -77,7 +78,7 @@ const processApproval = async (req, res) => {
     }
 
     const expense = await Expense.findById(expenseId)
-      .populate('user', 'firstName lastName email')
+      .populate('user', 'firstName lastName email preferences')
       .populate('approvalFlow');
 
     if (!expense) {
@@ -138,6 +139,19 @@ const processApproval = async (req, res) => {
     }
 
     await expense.save();
+
+    if (expense.user?.preferences?.emailNotifications !== false) {
+      sendExpenseStatusEmail({
+        to: expense.user?.email,
+        userName: `${expense.user?.firstName || ''} ${expense.user?.lastName || ''}`.trim(),
+        expenseTitle: expense.title,
+        decision,
+        comments,
+        approverName: req.user.email
+      }).catch((emailError) => {
+        console.error('Expense status email error:', emailError);
+      });
+    }
 
     res.json({
       message: `Expense ${decision.toLowerCase()} successfully`,

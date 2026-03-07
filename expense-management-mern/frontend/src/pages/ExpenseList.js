@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import { useExpense } from '../context/ExpenseContext';
 import { useAuth } from '../context/AuthContext';
 
 const ExpenseList = () => {
-  const { user } = useAuth();
+  const { user, formatDate } = useAuth();
   const { 
     expenses, 
     getUserExpenses, 
     getCompanyExpenses, 
     deleteExpense, 
+    downloadExpenseReceipt,
+    exportMonthlyReport,
     filters, 
     setFilters,
     pagination,
@@ -19,8 +22,17 @@ const ExpenseList = () => {
   const [localFilters, setLocalFilters] = useState({
     status: 'ALL',
     category: 'ALL',
+    userId: 'ALL',
     startDate: '',
-    endDate: ''
+    endDate: '',
+    search: '',
+    sortBy: 'createdAt',
+    sortOrder: 'desc'
+  });
+  const [companyUsers, setCompanyUsers] = useState([]);
+  const [reportMonth, setReportMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
   const loadExpenses = useCallback(() => {
@@ -35,6 +47,19 @@ const ExpenseList = () => {
     loadExpenses();
   }, [loadExpenses]);
 
+  useEffect(() => {
+    const loadUsers = async () => {
+      if (!(user?.role === 'ADMIN' || user?.role === 'MANAGER')) return;
+      try {
+        const res = await axios.get('/api/users');
+        setCompanyUsers(res.data.users || []);
+      } catch (error) {
+        console.error('Load users for filter error:', error);
+      }
+    };
+    loadUsers();
+  }, [user?.role]);
+
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setLocalFilters(prev => ({ ...prev, [name]: value }));
@@ -45,9 +70,21 @@ const ExpenseList = () => {
   };
 
   const resetFilters = () => {
-    const emptyFilters = { status: 'ALL', category: 'ALL', startDate: '', endDate: '' };
+    const emptyFilters = { status: 'ALL', category: 'ALL', userId: 'ALL', startDate: '', endDate: '', search: '', sortBy: 'createdAt', sortOrder: 'desc' };
     setLocalFilters(emptyFilters);
     setFilters({ ...emptyFilters, page: 1 });
+  };
+
+  const handleExport = async (format) => {
+    const [yearText, monthText] = reportMonth.split('-');
+    await exportMonthlyReport({
+      format,
+      year: Number(yearText),
+      month: Number(monthText),
+      status: localFilters.status,
+      category: localFilters.category,
+      userId: localFilters.userId
+    });
   };
 
   const handleDelete = async (id) => {
@@ -146,6 +183,76 @@ const ExpenseList = () => {
                 Reset
               </button>
             </div>
+            {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
+              <div className="col-md-3">
+                <label className="form-label">User</label>
+                <select
+                  name="userId"
+                  className="form-select"
+                  value={localFilters.userId}
+                  onChange={handleFilterChange}
+                >
+                  <option value="ALL">All Users</option>
+                  {companyUsers.map((companyUser) => (
+                    <option key={companyUser._id} value={companyUser._id}>
+                      {companyUser.firstName} {companyUser.lastName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="col-md-4">
+              <label className="form-label">Search</label>
+              <input
+                type="text"
+                name="search"
+                className="form-control"
+                placeholder="Title, description, status..."
+                value={localFilters.search}
+                onChange={handleFilterChange}
+              />
+            </div>
+            <div className="col-md-2">
+              <label className="form-label">Sort By</label>
+              <select
+                name="sortBy"
+                className="form-select"
+                value={localFilters.sortBy}
+                onChange={handleFilterChange}
+              >
+                <option value="createdAt">Created</option>
+                <option value="title">Title</option>
+                <option value="amount">Amount</option>
+                <option value="expenseDate">Expense Date</option>
+                <option value="status">Status</option>
+              </select>
+            </div>
+            <div className="col-md-2">
+              <label className="form-label">Order</label>
+              <select
+                name="sortOrder"
+                className="form-select"
+                value={localFilters.sortOrder}
+                onChange={handleFilterChange}
+              >
+                <option value="desc">Descending</option>
+                <option value="asc">Ascending</option>
+              </select>
+            </div>
+            <div className="col-md-4 d-flex align-items-end">
+              <input
+                type="month"
+                className="form-control me-2"
+                value={reportMonth}
+                onChange={(e) => setReportMonth(e.target.value)}
+              />
+              <button className="btn btn-outline-primary me-2" onClick={() => handleExport('csv')}>
+                Export CSV
+              </button>
+              <button className="btn btn-outline-dark" onClick={() => handleExport('pdf')}>
+                Export PDF
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -224,7 +331,7 @@ const ExpenseList = () => {
                         </td>
                         <td>
                           <small>
-                            {new Date(expense.expenseDate).toLocaleDateString()}
+                            {formatDate(expense.expenseDate)}
                           </small>
                         </td>
                         <td>
@@ -232,6 +339,14 @@ const ExpenseList = () => {
                             <Link to={`/expenses/${expense._id}`} className="btn btn-outline-primary btn-sm">
                               <i className="fas fa-eye"></i>
                             </Link>
+                            <button
+                              type="button"
+                              className="btn btn-outline-success btn-sm"
+                              onClick={() => downloadExpenseReceipt(expense._id)}
+                              title="Download Receipt"
+                            >
+                              <i className="fas fa-file-download"></i>
+                            </button>
                             {canManageOwnExpense && (
                               <>
                                 <Link to={`/expenses/${expense._id}/edit`} className="btn btn-outline-secondary btn-sm">

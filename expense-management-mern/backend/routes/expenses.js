@@ -3,7 +3,10 @@ const {
   createExpense, 
   getUserExpenses, 
   getCompanyExpenses, 
+  exportMonthlyReport,
   getExpense, 
+  getExpenseReceipt,
+  downloadExpenseReceipt,
   updateExpense, 
   deleteExpense 
 } = require('../controllers/expenseController');
@@ -26,6 +29,21 @@ router.get('/my', auth, getUserExpenses);
 // @desc    Get all company expenses (Admin/Manager)
 // @access  Private (Admin/Manager)
 router.get('/company', auth, authorize('ADMIN', 'MANAGER'), getCompanyExpenses);
+
+// @route   GET /api/expenses/reports/monthly/export
+// @desc    Export monthly report by user/category/status in CSV/PDF
+// @access  Private
+router.get('/reports/monthly/export', auth, exportMonthlyReport);
+
+// @route   GET /api/expenses/:expenseId/receipt
+// @desc    Get generated receipt preview
+// @access  Private
+router.get('/:expenseId/receipt', auth, getExpenseReceipt);
+
+// @route   GET /api/expenses/:expenseId/receipt/download
+// @desc    Download generated receipt
+// @access  Private
+router.get('/:expenseId/receipt/download', auth, downloadExpenseReceipt);
 
 // @route   GET /api/expenses/:expenseId
 // @desc    Get single expense

@@ -1,5 +1,5 @@
 const express = require('express');
-const { register, login, getMe, changePassword, forgotPassword, resetPassword } = require('../controllers/authController');
+const { register, login, getMe, updateProfile, updatePreferences, changePassword, forgotPassword, resetPassword } = require('../controllers/authController');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -23,6 +23,16 @@ router.get('/me', auth, getMe);
 // @desc    Change user password
 // @access  Private
 router.post('/change-password', auth, changePassword);
+
+// @route   PUT /api/auth/profile
+// @desc    Update current user profile
+// @access  Private
+router.put('/profile', auth, updateProfile);
+
+// @route   PUT /api/auth/preferences
+// @desc    Update user preferences
+// @access  Private
+router.put('/preferences', auth, updatePreferences);
 
 // @route   POST /api/auth/forgot-password
 // @desc    Send password reset email

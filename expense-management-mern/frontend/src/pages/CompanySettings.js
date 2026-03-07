@@ -5,9 +5,13 @@ import axios from 'axios';
 const CompanySettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [logoSaving, setLogoSaving] = useState(false);
+  const [selectedLogoFile, setSelectedLogoFile] = useState(null);
   const [currencies, setCurrencies] = useState([]);
+  const apiBaseUrl = (process.env.REACT_APP_API_URL || '').replace(/\/$/, '');
   const [formData, setFormData] = useState({
     name: '',
+    logo: '',
     contactEmail: '',
     contactPhone: '',
     address: {
@@ -40,6 +44,7 @@ const CompanySettings = () => {
       
       setFormData({
         name: company.name || '',
+        logo: company.logo || '',
         contactEmail: company.contactEmail || '',
         contactPhone: company.contactPhone || '',
         address: {
@@ -63,6 +68,58 @@ const CompanySettings = () => {
       toast.error('Failed to load company settings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLogoFileChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setSelectedLogoFile(file);
+  };
+
+  const getLogoUrl = (logoPath) => {
+    if (!logoPath) return '';
+    if (logoPath.startsWith('http://') || logoPath.startsWith('https://')) return logoPath;
+    return apiBaseUrl ? `${apiBaseUrl}${logoPath}` : logoPath;
+  };
+
+  const handleLogoUpload = async () => {
+    if (!selectedLogoFile) {
+      toast.error('Please select a logo image first');
+      return;
+    }
+
+    try {
+      setLogoSaving(true);
+      const logoFormData = new FormData();
+      logoFormData.append('logo', selectedLogoFile);
+
+      const response = await axios.put('/api/companies/settings/logo', logoFormData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      setFormData(prev => ({ ...prev, logo: response.data.logo || '' }));
+      setSelectedLogoFile(null);
+      toast.success('Company logo updated successfully');
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to upload company logo';
+      toast.error(message);
+    } finally {
+      setLogoSaving(false);
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    try {
+      setLogoSaving(true);
+      await axios.delete('/api/companies/settings/logo');
+      setFormData(prev => ({ ...prev, logo: '' }));
+      setSelectedLogoFile(null);
+      toast.success('Company logo removed successfully');
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to remove company logo';
+      toast.error(message);
+    } finally {
+      setLogoSaving(false);
     }
   };
 
@@ -198,6 +255,47 @@ const CompanySettings = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className="col-12">
+                <label className="form-label">Company Logo</label>
+                {formData.logo ? (
+                  <div className="mb-2">
+                    <img
+                      src={getLogoUrl(formData.logo)}
+                      alt="Company logo"
+                      style={{ maxHeight: '80px', maxWidth: '220px', objectFit: 'contain' }}
+                      className="border rounded p-2 bg-white"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-muted small mb-2">No company logo uploaded yet.</p>
+                )}
+                <div className="d-flex flex-wrap gap-2 align-items-center">
+                  <input
+                    type="file"
+                    className="form-control"
+                    accept="image/*"
+                    onChange={handleLogoFileChange}
+                    style={{ maxWidth: '320px' }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary"
+                    onClick={handleLogoUpload}
+                    disabled={logoSaving || !selectedLogoFile}
+                  >
+                    {logoSaving ? 'Uploading...' : 'Upload Logo'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline-danger"
+                    onClick={handleRemoveLogo}
+                    disabled={logoSaving || !formData.logo}
+                  >
+                    Remove Logo
+                  </button>
+                </div>
+                <div className="form-text">Allowed: image files only, up to 5MB.</div>
               </div>
             </div>
           </div>

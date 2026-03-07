@@ -18,7 +18,7 @@ const createTransporter = () => {
   }
 
   // For production, use real email service
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
     port: process.env.EMAIL_PORT || 587,
     secure: false, // true for 465, false for other ports
@@ -27,6 +27,15 @@ const createTransporter = () => {
       pass: process.env.EMAIL_PASS
     }
   });
+};
+
+const sendEmail = async (mailOptions) => {
+  const transporter = createTransporter();
+  const result = await transporter.sendMail({
+    from: process.env.EMAIL_FROM || 'noreply@expensemanagement.com',
+    ...mailOptions
+  });
+  return result;
 };
 
 // Send password reset email
@@ -116,6 +125,48 @@ const sendPasswordResetEmail = async (email, resetUrl, userName) => {
   }
 };
 
+const sendExpenseSubmittedEmail = async ({ to, userName, expenseTitle, amount, currency, expenseDate, status }) => {
+  if (!to) return null;
+  return sendEmail({
+    to,
+    subject: `Expense Submitted: ${expenseTitle}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto;">
+        <h2>Expense Submission Confirmation</h2>
+        <p>Hello ${userName || 'User'},</p>
+        <p>Your expense has been submitted successfully.</p>
+        <ul>
+          <li><strong>Title:</strong> ${expenseTitle}</li>
+          <li><strong>Amount:</strong> ${amount} ${currency}</li>
+          <li><strong>Expense Date:</strong> ${expenseDate}</li>
+          <li><strong>Status:</strong> ${status}</li>
+        </ul>
+      </div>
+    `,
+    text: `Expense submitted.\nTitle: ${expenseTitle}\nAmount: ${amount} ${currency}\nExpense Date: ${expenseDate}\nStatus: ${status}`
+  });
+};
+
+const sendExpenseStatusEmail = async ({ to, userName, expenseTitle, decision, comments, approverName }) => {
+  if (!to) return null;
+  return sendEmail({
+    to,
+    subject: `Expense ${decision}: ${expenseTitle}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto;">
+        <h2>Expense ${decision}</h2>
+        <p>Hello ${userName || 'User'},</p>
+        <p>Your expense <strong>${expenseTitle}</strong> has been <strong>${decision}</strong>.</p>
+        <p><strong>Reviewed by:</strong> ${approverName || 'Approver'}</p>
+        <p><strong>Comments:</strong> ${comments || 'No comments provided.'}</p>
+      </div>
+    `,
+    text: `Expense ${decision}\nTitle: ${expenseTitle}\nReviewed by: ${approverName || 'Approver'}\nComments: ${comments || 'No comments provided.'}`
+  });
+};
+
 module.exports = {
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  sendExpenseSubmittedEmail,
+  sendExpenseStatusEmail
 };

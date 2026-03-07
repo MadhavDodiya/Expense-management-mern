@@ -14,8 +14,12 @@ const initialState = {
   filters: {
     status: 'ALL',
     category: 'ALL',
+    userId: 'ALL',
     startDate: '',
     endDate: '',
+    search: '',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
     page: 1,
     limit: 10
   },
@@ -199,6 +203,85 @@ export const ExpenseProvider = ({ children }) => {
     }
   }, []);
 
+  // Download generated receipt
+  const getExpenseReceipt = useCallback(async (id) => {
+    try {
+      const res = await axios.get(`/api/expenses/${id}/receipt`);
+      return res.data?.receipt || null;
+    } catch (error) {
+      console.error('Get receipt preview error:', error);
+      const message = error.response?.data?.message || 'Failed to load receipt';
+      toast.error(message);
+      return null;
+    }
+  }, []);
+
+  // Download generated receipt
+  const downloadExpenseReceipt = useCallback(async (id) => {
+    try {
+      const res = await axios.get(`/api/expenses/${id}/receipt/download`, {
+        responseType: 'blob'
+      });
+
+      const blob = new Blob([res.data], { type: res.headers['content-type'] || 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const contentDisposition = res.headers['content-disposition'] || '';
+      const matchedName = contentDisposition.match(/filename="?([^"]+)"?/i);
+      link.href = url;
+      link.download = matchedName?.[1] || `receipt-${id}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Receipt downloaded successfully');
+      return true;
+    } catch (error) {
+      console.error('Download receipt error:', error);
+      const message = error.response?.data?.message || 'Failed to download receipt';
+      toast.error(message);
+      return false;
+    }
+  }, []);
+
+  // Export monthly report (CSV/PDF)
+  const exportMonthlyReport = useCallback(async ({ format = 'csv', month, year, status = 'ALL', category = 'ALL', userId = 'ALL' } = {}) => {
+    try {
+      const params = new URLSearchParams();
+      params.append('format', format);
+      if (month) params.append('month', month);
+      if (year) params.append('year', year);
+      if (status) params.append('status', status);
+      if (category) params.append('category', category);
+      if (userId) params.append('userId', userId);
+
+      const res = await axios.get(`/api/expenses/reports/monthly/export?${params.toString()}`, {
+        responseType: 'blob'
+      });
+
+      const blob = new Blob([res.data], { type: res.headers['content-type'] || 'application/octet-stream' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const contentDisposition = res.headers['content-disposition'] || '';
+      const matchedName = contentDisposition.match(/filename="?([^"]+)"?/i);
+      link.href = url;
+      link.download = matchedName?.[1] || `monthly-expense-report.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success(`Monthly ${format.toUpperCase()} report exported`);
+      return true;
+    } catch (error) {
+      console.error('Export monthly report error:', error);
+      const message = error.response?.data?.message || 'Failed to export report';
+      toast.error(message);
+      return false;
+    }
+  }, []);
+
   // Process OCR
   const processOCR = useCallback(async (file) => {
     try {
@@ -282,12 +365,15 @@ export const ExpenseProvider = ({ children }) => {
     createExpense,
     updateExpense,
     deleteExpense,
+    getExpenseReceipt,
+    downloadExpenseReceipt,
+    exportMonthlyReport,
     processOCR,
     getPendingApprovals,
     processApproval,
     setFilters,
     resetFilters
-  }), [state, getUserExpenses, getCompanyExpenses, getExpense, createExpense, updateExpense, deleteExpense, processOCR, getPendingApprovals, processApproval, setFilters, resetFilters]);
+  }), [state, getUserExpenses, getCompanyExpenses, getExpense, createExpense, updateExpense, deleteExpense, getExpenseReceipt, downloadExpenseReceipt, exportMonthlyReport, processOCR, getPendingApprovals, processApproval, setFilters, resetFilters]);
 
   return (
     <ExpenseContext.Provider value={value}>

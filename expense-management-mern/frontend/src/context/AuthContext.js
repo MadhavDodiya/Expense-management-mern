@@ -63,6 +63,8 @@ const authReducer = (state, action) => {
 // Auth provider component
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
+  const userLocale = state.user?.preferences?.language || 'en-US';
+  const userTimeZone = state.user?.preferences?.timezone || 'UTC';
 
   // Set auth header
   const setAuthToken = useCallback((token) => {
@@ -152,6 +154,62 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const updateProfile = useCallback(async (profileData) => {
+    try {
+      const res = await axios.put('/api/auth/profile', profileData);
+      dispatch({ type: 'LOAD_USER', payload: res.data.user });
+      toast.success('Profile updated successfully');
+      return true;
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to update profile';
+      toast.error(message);
+      return false;
+    }
+  }, []);
+
+  const updatePreferences = useCallback(async (preferences) => {
+    try {
+      const res = await axios.put('/api/auth/preferences', preferences);
+      dispatch({ type: 'LOAD_USER', payload: res.data.user });
+      toast.success('Preferences updated successfully');
+      return true;
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to update preferences';
+      toast.error(message);
+      return false;
+    }
+  }, []);
+
+  const formatDate = useCallback((dateValue, options = {}) => {
+    if (!dateValue) return '-';
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return '-';
+    return new Intl.DateTimeFormat(userLocale, {
+      timeZone: userTimeZone,
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      ...options
+    }).format(date);
+  }, [userLocale, userTimeZone]);
+
+  const formatDateTime = useCallback((dateValue, options = {}) => {
+    if (!dateValue) return '-';
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return '-';
+    return new Intl.DateTimeFormat(userLocale, {
+      timeZone: userTimeZone,
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+      ...options
+    }).format(date);
+  }, [userLocale, userTimeZone]);
+
   useEffect(() => {
     loadUser();
   }, [loadUser]);
@@ -162,6 +220,10 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     changePassword,
+    updateProfile,
+    updatePreferences,
+    formatDate,
+    formatDateTime,
     loadUser
   };
 

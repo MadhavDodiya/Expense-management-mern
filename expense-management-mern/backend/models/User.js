@@ -70,6 +70,24 @@ const UserSchema = new mongoose.Schema({
   resetPasswordExpires: {
     type: Date,
     default: null
+  },
+  preferences: {
+    language: {
+      type: String,
+      default: 'en-US'
+    },
+    timezone: {
+      type: String,
+      default: 'UTC'
+    },
+    emailNotifications: {
+      type: Boolean,
+      default: true
+    },
+    approvalNotifications: {
+      type: Boolean,
+      default: true
+    }
   }
 }, {
   timestamps: true

@@ -1,15 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 
 const Profile = () => {
-  const { user, changePassword } = useAuth();
+  const { user, changePassword, updateProfile, updatePreferences } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileData, setProfileData] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    department: ''
+  });
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
+  const [preferences, setPreferences] = useState({
+    language: 'en-US',
+    timezone: 'UTC',
+    emailNotifications: true,
+    approvalNotifications: true
+  });
+
+  useEffect(() => {
+    if (!user?.preferences) return;
+    setPreferences({
+      language: user.preferences.language || 'en-US',
+      timezone: user.preferences.timezone || 'UTC',
+      emailNotifications: user.preferences.emailNotifications ?? true,
+      approvalNotifications: user.preferences.approvalNotifications ?? true
+    });
+  }, [user]);
+
+  useEffect(() => {
+    setProfileData({
+      firstName: user?.firstName || '',
+      lastName: user?.lastName || '',
+      phone: user?.phone || '',
+      department: user?.department || ''
+    });
+  }, [user]);
 
   const handlePasswordChange = (e) => {
     setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
@@ -35,6 +67,50 @@ const Profile = () => {
 
     if (success) {
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    }
+  };
+
+  const handlePreferenceChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setPreferences((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handlePreferenceSave = async () => {
+    await updatePreferences(preferences);
+  };
+
+  const handleProfileChange = (e) => {
+    const { name, value } = e.target;
+    setProfileData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    if (!profileData.firstName.trim() || !profileData.lastName.trim()) {
+      toast.error('First name and last name are required');
+      return;
+    }
+
+    setProfileSaving(true);
+    const success = await updateProfile({
+      firstName: profileData.firstName,
+      lastName: profileData.lastName,
+      phone: profileData.phone,
+      department: profileData.department
+    });
+    setProfileSaving(false);
+
+    if (success) {
+      setProfileData((prev) => ({
+        ...prev,
+        firstName: prev.firstName.trim(),
+        lastName: prev.lastName.trim(),
+        phone: prev.phone.trim(),
+        department: prev.department.trim()
+      }));
     }
   };
 
@@ -86,15 +162,17 @@ const Profile = () => {
                 <h5 className="card-title mb-0">Profile Information</h5>
               </div>
               <div className="card-body">
-                <form>
+                <form onSubmit={handleProfileSubmit}>
                   <div className="row">
                     <div className="col-md-6 mb-3">
                       <label className="form-label">First Name</label>
                       <input
                         type="text"
                         className="form-control"
-                        value={user?.firstName || ''}
-                        readOnly
+                        name="firstName"
+                        value={profileData.firstName}
+                        onChange={handleProfileChange}
+                        required
                       />
                     </div>
                     <div className="col-md-6 mb-3">
@@ -102,8 +180,10 @@ const Profile = () => {
                       <input
                         type="text"
                         className="form-control"
-                        value={user?.lastName || ''}
-                        readOnly
+                        name="lastName"
+                        value={profileData.lastName}
+                        onChange={handleProfileChange}
+                        required
                       />
                     </div>
                   </div>
@@ -116,6 +196,29 @@ const Profile = () => {
                       value={user?.email || ''}
                       readOnly
                     />
+                  </div>
+
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Phone</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        name="phone"
+                        value={profileData.phone}
+                        onChange={handleProfileChange}
+                      />
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Department</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        name="department"
+                        value={profileData.department}
+                        onChange={handleProfileChange}
+                      />
+                    </div>
                   </div>
 
                   <div className="row">
@@ -139,10 +242,9 @@ const Profile = () => {
                     </div>
                   </div>
 
-                  <div className="alert alert-info">
-                    <i className="fas fa-info-circle me-2"></i>
-                    Contact your administrator to update your profile information.
-                  </div>
+                  <button type="submit" className="btn btn-primary" disabled={profileSaving}>
+                    {profileSaving ? 'Saving...' : 'Save Profile'}
+                  </button>
                 </form>
               </div>
             </div>
@@ -215,31 +317,68 @@ const Profile = () => {
           {activeTab === 'notifications' && (
             <div className="card">
               <div className="card-header">
-                <h5 className="card-title mb-0">Notification Preferences</h5>
+                <h5 className="card-title mb-0">Preferences</h5>
               </div>
               <div className="card-body">
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Language</label>
+                    <select
+                      className="form-select"
+                      name="language"
+                      value={preferences.language}
+                      onChange={handlePreferenceChange}
+                    >
+                      <option value="en-US">English (US)</option>
+                      <option value="hi-IN">Hindi (India)</option>
+                    </select>
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Timezone</label>
+                    <select
+                      className="form-select"
+                      name="timezone"
+                      value={preferences.timezone}
+                      onChange={handlePreferenceChange}
+                    >
+                      <option value="Asia/Kolkata">India (IST)</option>
+                      <option value="America/New_York">US Eastern (ET)</option>
+                      <option value="America/Chicago">US Central (CT)</option>
+                      <option value="America/Los_Angeles">US Pacific (PT)</option>
+                      <option value="UTC">UTC</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="form-check mb-3">
-                  <input className="form-check-input" type="checkbox" id="emailNotifications" defaultChecked />
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    id="emailNotifications"
+                    name="emailNotifications"
+                    checked={preferences.emailNotifications}
+                    onChange={handlePreferenceChange}
+                  />
                   <label className="form-check-label" htmlFor="emailNotifications">
                     Email notifications for expense updates
                   </label>
                 </div>
 
                 <div className="form-check mb-3">
-                  <input className="form-check-input" type="checkbox" id="approvalNotifications" defaultChecked />
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    id="approvalNotifications"
+                    name="approvalNotifications"
+                    checked={preferences.approvalNotifications}
+                    onChange={handlePreferenceChange}
+                  />
                   <label className="form-check-label" htmlFor="approvalNotifications">
                     Approval request notifications
                   </label>
                 </div>
 
-                <div className="form-check mb-3">
-                  <input className="form-check-input" type="checkbox" id="weeklyReports" />
-                  <label className="form-check-label" htmlFor="weeklyReports">
-                    Weekly expense reports
-                  </label>
-                </div>
-
-                <button className="btn btn-primary">
+                <button className="btn btn-primary" onClick={handlePreferenceSave}>
                   Save Preferences
                 </button>
               </div>

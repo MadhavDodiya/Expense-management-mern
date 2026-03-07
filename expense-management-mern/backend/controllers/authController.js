@@ -5,6 +5,30 @@ const Company = require('../models/Company');
 const { getCountryCurrency } = require('../utils/currencyHelper');
 const { sendPasswordResetEmail } = require('../utils/emailService');
 
+const mapUserResponse = (user) => ({
+  id: user._id,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  email: user.email,
+  role: user.role,
+  department: user.department,
+  employeeId: user.employeeId,
+  phone: user.phone,
+  manager: user.manager,
+  preferences: {
+    language: user.preferences?.language || 'en-US',
+    timezone: user.preferences?.timezone || 'UTC',
+    emailNotifications: user.preferences?.emailNotifications ?? true,
+    approvalNotifications: user.preferences?.approvalNotifications ?? true
+  },
+  company: user.company ? {
+    id: user.company._id,
+    name: user.company.name,
+    currency: user.company.currency,
+    country: user.company.country
+  } : undefined
+});
+
 // Generate JWT Token
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET || 'your-secret-key', {
@@ -70,18 +94,7 @@ const register = async (req, res) => {
     res.status(201).json({
       message: 'Company and admin user created successfully',
       token,
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-        company: {
-          id: company._id,
-          name: company.name,
-          currency: company.currency
-        }
-      }
+      user: mapUserResponse({ ...user.toObject(), company, manager: null })
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -121,18 +134,7 @@ const login = async (req, res) => {
     res.json({
       message: 'Login successful',
       token,
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-        company: {
-          id: user.company._id,
-          name: user.company.name,
-          currency: user.company.currency
-        }
-      }
+      user: mapUserResponse(user)
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -150,27 +152,87 @@ const getMe = async (req, res) => {
     }
 
     res.json({
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-        department: user.department,
-        employeeId: user.employeeId,
-        phone: user.phone,
-        manager: user.manager,
-        company: {
-          id: user.company._id,
-          name: user.company.name,
-          currency: user.company.currency,
-          country: user.company.country
-        }
-      }
+      user: mapUserResponse(user)
     });
   } catch (error) {
     console.error('Get user error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Update user preferences
+const updatePreferences = async (req, res) => {
+  try {
+    const { language, timezone, emailNotifications, approvalNotifications } = req.body;
+    const user = await User.findById(req.user.id).populate('company').populate('manager', 'firstName lastName email');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const updatedPreferences = { ...(user.preferences?.toObject?.() || user.preferences || {}) };
+
+    if (language) updatedPreferences.language = language;
+    if (timezone) updatedPreferences.timezone = timezone;
+    if (emailNotifications !== undefined) updatedPreferences.emailNotifications = Boolean(emailNotifications);
+    if (approvalNotifications !== undefined) updatedPreferences.approvalNotifications = Boolean(approvalNotifications);
+
+    user.preferences = updatedPreferences;
+    await user.save();
+
+    return res.json({
+      message: 'Preferences updated successfully',
+      user: mapUserResponse(user)
+    });
+  } catch (error) {
+    console.error('Update preferences error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Update user profile (self)
+const updateProfile = async (req, res) => {
+  try {
+    const { firstName, lastName, phone, department } = req.body;
+    const user = await User.findById(req.user.id).populate('company').populate('manager', 'firstName lastName email');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (firstName !== undefined) {
+      const trimmedFirstName = String(firstName).trim();
+      if (!trimmedFirstName) {
+        return res.status(400).json({ message: 'First name is required' });
+      }
+      user.firstName = trimmedFirstName;
+    }
+
+    if (lastName !== undefined) {
+      const trimmedLastName = String(lastName).trim();
+      if (!trimmedLastName) {
+        return res.status(400).json({ message: 'Last name is required' });
+      }
+      user.lastName = trimmedLastName;
+    }
+
+    if (phone !== undefined) {
+      user.phone = String(phone).trim();
+    }
+
+    if (department !== undefined) {
+      user.department = String(department).trim();
+    }
+
+    await user.save();
+
+    return res.json({
+      message: 'Profile updated successfully',
+      user: mapUserResponse(user)
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -278,6 +340,8 @@ module.exports = {
   register,
   login,
   getMe,
+  updateProfile,
+  updatePreferences,
   changePassword,
   forgotPassword,
   resetPassword
