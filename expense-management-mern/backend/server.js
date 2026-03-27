@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const Company = require('./models/Company');
+const User = require('./models/User');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -13,6 +15,7 @@ const approvalRoutes = require('./routes/approvals');
 const ocrRoutes = require('./routes/ocr');
 const stockRoutes = require('./routes/stocks');
 const stockTypeRoutes = require('./routes/stockTypes');
+const platformRoutes = require('./routes/platform');
 const inventoryStockRoutes = require('./routes/inventory/stocks');
 const inventoryExpenseRoutes = require('./routes/inventory/expenses');
 
@@ -35,6 +38,46 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/expense_m
   useUnifiedTopology: true,
 })
 .then(() => console.log('MongoDB Connected'))
+.then(async () => {
+  // Optional: bootstrap a SUPER_ADMIN user (platform admin) to manage multiple companies.
+  // Set env vars: SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD.
+  const email = (process.env.SUPER_ADMIN_EMAIL || '').toString().trim().toLowerCase();
+  const password = (process.env.SUPER_ADMIN_PASSWORD || '').toString();
+  if (!email || !password) return;
+
+  try {
+    const platformDomain = (process.env.PLATFORM_COMPANY_DOMAIN || 'platform.local').toString().trim().toLowerCase();
+    const platformName = (process.env.PLATFORM_COMPANY_NAME || 'Platform').toString().trim() || 'Platform';
+
+    const platformCompany = await Company.findOneAndUpdate(
+      { domain: platformDomain },
+      {
+        $setOnInsert: {
+          name: platformName,
+          domain: platformDomain,
+          country: 'N/A',
+          currency: 'USD'
+        }
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    const existing = await User.findOne({ email });
+    if (!existing) {
+      await User.create({
+        firstName: 'Super',
+        lastName: 'Admin',
+        email,
+        password,
+        role: 'SUPER_ADMIN',
+        company: platformCompany._id
+      });
+      console.log('SUPER_ADMIN user created');
+    }
+  } catch (bootstrapError) {
+    console.error('SUPER_ADMIN bootstrap error:', bootstrapError);
+  }
+})
 .catch(err => console.error('MongoDB connection error:', err));
 
 // Routes
@@ -46,6 +89,7 @@ app.use('/api/approvals', approvalRoutes);
 app.use('/api/ocr', ocrRoutes);
 app.use('/api/stocks', stockRoutes);
 app.use('/api/stock-types', stockTypeRoutes);
+app.use('/api/platform', platformRoutes);
 
 // Inventory (3-level stock + expenses)
 app.use('/api/inventory/stocks', inventoryStockRoutes);

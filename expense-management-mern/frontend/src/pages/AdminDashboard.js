@@ -13,7 +13,6 @@ const AdminDashboard = () => {
   const { user, formatDate, formatCurrency } = useAuth();
   const { getCompanyExpenses, expenses } = useExpense();
   const [selectedRequestId, setSelectedRequestId] = useState(null);
-  const [stockSearch, setStockSearch] = useState('');
   const [stocks, setStocks] = useState([]);
   const [stocksLoading, setStocksLoading] = useState(false);
   const [stocksSearch, setStocksSearch] = useState('');
@@ -85,16 +84,6 @@ const AdminDashboard = () => {
       .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
   }, [expenses]);
 
-  const filteredNewExpenseRequests = useMemo(() => {
-    const q = (stockSearch || '').trim().toLowerCase();
-    if (!q) return newExpenseRequests;
-    return newExpenseRequests.filter(req => {
-      const title = (req.title || '').toString().toLowerCase();
-      const emp = `${req.user?.firstName || ''} ${req.user?.lastName || ''}`.trim().toLowerCase();
-      return title.includes(q) || emp.includes(q);
-    });
-  }, [newExpenseRequests, stockSearch]);
-
   useEffect(() => {
     if (newExpenseRequests.length === 0) {
       if (selectedRequestId !== null) setSelectedRequestId(null);
@@ -163,77 +152,8 @@ const AdminDashboard = () => {
       </div>
 
       <div className="row g-4">
-        {/* Sidebar: Stock Names */}
-        <div className="col-lg-3">
-          <div className="card h-100 position-sticky" style={{ top: '1rem' }}>
-            <div className="card-header">
-              <div className="d-flex align-items-center justify-content-between gap-2">
-                <h5 className="card-title mb-0">Stock Names</h5>
-                <span className="badge bg-light text-dark">{newExpenseRequests.length}</span>
-              </div>
-            </div>
-            <div className="card-body p-2 border-bottom">
-              <div className="input-group input-group-sm">
-                <span className="input-group-text">
-                  <i className="fas fa-search"></i>
-                </span>
-                <input
-                  className="form-control"
-                  placeholder="Search..."
-                  value={stockSearch}
-                  onChange={(e) => setStockSearch(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="card-body p-0" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
-              {filteredNewExpenseRequests.length > 0 ? (
-                <div className="list-group list-group-flush">
-                  {filteredNewExpenseRequests.map(req => {
-                    const isSelected = req._id === selectedRequestId;
-                    return (
-                      <button
-                        key={req._id}
-                        type="button"
-                        className={`list-group-item list-group-item-action ${isSelected ? 'active' : ''}`}
-                        onClick={() => setSelectedRequestId(req._id)}
-                      >
-                        <div className="d-flex justify-content-between align-items-center">
-                          <div className="fw-semibold text-truncate">{req.title}</div>
-                          <small className={isSelected ? 'text-white-50' : 'text-muted'}>
-                            {formatDate(req.createdAt)}
-                          </small>
-                        </div>
-                        <small className={isSelected ? 'text-white-50' : 'text-muted'}>
-                          {req.user?.firstName} {req.user?.lastName}
-                        </small>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="p-3 text-center text-muted">
-                  No matching requests
-                </div>
-              )}
-            </div>
-            <div className="card-footer">
-              <div className="small text-muted">Updated Stocks</div>
-              {selectedRequest ? (
-                <>
-                  <div className="fw-semibold">{selectedRequest.status}</div>
-                  <div className="small text-muted">
-                    Updated: {formatDate(selectedRequest.updatedAt || selectedRequest.createdAt)}
-                  </div>
-                </>
-              ) : (
-                <div className="text-muted">-</div>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* Main Content */}
-        <div className="col-lg-9">
+        <div className="col-12">
           {/* Stocks List */}
           <div className="card mb-4">
             <div className="card-header d-flex justify-content-between align-items-center">
