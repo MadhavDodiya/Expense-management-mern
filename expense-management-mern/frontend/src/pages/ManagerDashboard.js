@@ -18,7 +18,7 @@ const ManagerDashboard = () => {
             <div className="col-auto">
               <Link to="/expenses/new" className="btn btn-light">
                 <i className="fas fa-plus me-2"></i>
-                New Expense
+                New Expense Request
               </Link>
             </div>
           </div>
@@ -90,7 +90,7 @@ const ManagerDashboard = () => {
                 <div className="col-md-3">
                   <Link to="/expenses/new" className="btn btn-outline-success w-100 h-100 d-flex flex-column align-items-center justify-content-center py-4">
                     <i className="fas fa-plus fa-2x mb-2"></i>
-                    <span>New Expense</span>
+                    <span>New Expense Request</span>
                   </Link>
                 </div>
                 <div className="col-md-3">

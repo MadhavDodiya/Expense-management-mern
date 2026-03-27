@@ -1,8 +1,11 @@
 const Expense = require('../models/Expense');
 const User = require('../models/User');
 const ApprovalFlow = require('../models/ApprovalFlow');
+const StockItem = require('../models/StockItem');
 const mongoose = require('mongoose');
 const { sendExpenseStatusEmail } = require('../utils/emailService');
+
+const normalizeStockName = (value) => (value || '').toString().trim().toLowerCase();
 
 // Get pending approvals for current user
 const getPendingApprovals = async (req, res) => {
@@ -132,6 +135,51 @@ const processApproval = async (req, res) => {
       const isFullyApproved = await checkApprovalCompletion(expense);
 
       if (isFullyApproved) {
+        // If stock for the item is full, do not allow final approval.
+        const stockName = (expense.title || '').toString().trim();
+        const nameNormalized = normalizeStockName(stockName);
+        if (nameNormalized) {
+          const stock = await StockItem.findOne({ company: expense.company, nameNormalized });
+          if (stock && stock.status === 'BLOCKED') {
+            return res.status(400).json({
+              message: `Stock is blocked for "${stock.name}". Cannot approve this request.`
+            });
+          }
+          if (stock && stock.maxQuantity > 0 && stock.quantity >= stock.maxQuantity) {
+            return res.status(400).json({
+              message: `Stock is full for "${stock.name}". Cannot approve this request.`
+            });
+          }
+
+          // Increase stock only on final approval (treat each approved request as +1).
+          if (stock) {
+            stock.quantity = Math.max(0, Number(stock.quantity || 0)) + 1;
+            stock.lastUpdatedFromExpense = expense._id;
+            await stock.save();
+          } else {
+            // Best-effort type linkage (fallback to legacy label).
+            const StockType = require('../models/StockType');
+            const categoryName = (expense.category || 'OTHER').toString().trim();
+            const categoryType = await StockType.findOne({
+              company: expense.company,
+              nameNormalized: normalizeStockName(categoryName)
+            }).select('_id name group');
+
+            await StockItem.create({
+              company: expense.company,
+              name: stockName,
+              nameNormalized,
+              quantity: 1,
+              maxQuantity: 0,
+              typeId: categoryType?._id || null,
+              type: categoryType?.name || categoryName || 'OTHER',
+              typeGroup: categoryType?.group || categoryName || 'OTHER',
+              status: 'ACTIVE',
+              lastUpdatedFromExpense: expense._id
+            });
+          }
+        }
+
         expense.status = 'APPROVED';
         expense.approvalDate = new Date();
         expense.approvedAmount = expense.convertedAmount;

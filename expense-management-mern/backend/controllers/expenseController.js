@@ -2,6 +2,10 @@ const Expense = require('../models/Expense');
 const User = require('../models/User');
 const Company = require('../models/Company');
 const ApprovalFlow = require('../models/ApprovalFlow');
+const StockItem = require('../models/StockItem');
+const StockType = require('../models/StockType');
+const { EXPENSE_CATEGORIES } = require('../constants/expenseCategories');
+const { ensureDefaultTypes } = require('./stockTypeController');
 const { convertCurrency } = require('../utils/currencyHelper');
 const { sendExpenseSubmittedEmail } = require('../utils/emailService');
 const Jimp = require('jimp');
@@ -80,6 +84,8 @@ const formatReceiptText = (expense, generatedAt = new Date()) => {
 
   return lines.join('\n');
 };
+
+const normalizeStockName = (value) => (value || '').toString().trim().toLowerCase();
 
 const getAuthorizedExpense = async (expenseId, reqUser) => {
   const expense = await Expense.findById(expenseId)
@@ -418,7 +424,9 @@ const createExpense = async (req, res) => {
       currency,
       category,
       expenseDate,
-      ocrData
+      ocrData,
+      transportMode,
+      transportCompany
     } = req.body;
 
     // Validate payload early to avoid generic 500 errors
@@ -473,7 +481,11 @@ const createExpense = async (req, res) => {
       category,
       expenseDate: parsedExpenseDate,
       receipts: [],
-      ocrData: parsedOcrData
+      ocrData: parsedOcrData,
+      transportDetails: category === 'TRANSPORT' ? {
+        mode: transportMode || undefined,
+        company: (transportCompany || '').toString().trim()
+      } : undefined
     });
 
     // Handle file uploads
@@ -488,6 +500,72 @@ const createExpense = async (req, res) => {
     }
 
     await expense.save();
+
+    // Ensure requested item/product exists in Stocks list for the company.
+    // Do not change quantity here (quantity changes on final approval).
+    try {
+      const stockName = (expense.title || '').toString().trim();
+      const nameNormalized = normalizeStockName(stockName);
+      if (nameNormalized) {
+        // Ensure baseline types exist (expense categories).
+        await ensureDefaultTypes(req.user.company);
+
+        // Try to match typeId from category stock type (if present).
+        const categoryName = (category || 'OTHER').toString().trim();
+        const categoryType = await StockType.findOne({
+          company: req.user.company,
+          nameNormalized: normalizeStockName(categoryName)
+        }).select('_id name group');
+
+        await StockItem.findOneAndUpdate(
+          { company: req.user.company, nameNormalized },
+          {
+            $setOnInsert: {
+              company: req.user.company,
+              name: stockName,
+              nameNormalized,
+              quantity: 0,
+              maxQuantity: 0,
+              typeId: categoryType?._id || null,
+              type: categoryType?.name || categoryName || 'OTHER',
+              typeGroup: categoryType?.group || categoryName || 'OTHER',
+              status: 'ACTIVE'
+            }
+          },
+          { upsert: true, new: false, setDefaultsOnInsert: true }
+        );
+      }
+
+      // Add all expense categories to Stocks (as stock items with quantity 0 by default).
+      // This keeps Stocks list complete even before any category is used.
+      await Promise.all(
+        (EXPENSE_CATEGORIES || []).map(async (cat) => {
+          const catName = (cat || '').toString().trim();
+          const catNormalized = normalizeStockName(catName);
+          if (!catNormalized) return;
+          await StockItem.findOneAndUpdate(
+            { company: req.user.company, nameNormalized: catNormalized },
+            {
+              $setOnInsert: {
+                company: req.user.company,
+                name: catName,
+                nameNormalized: catNormalized,
+                quantity: 0,
+                maxQuantity: 0,
+                typeId: null,
+                type: catName,
+                typeGroup: catName,
+                status: 'ACTIVE'
+              }
+            },
+            { upsert: true, new: false, setDefaultsOnInsert: true }
+          );
+        })
+      );
+    } catch (stockError) {
+      console.error('Stock upsert on expense create error:', stockError);
+      // Do not block expense creation if stock list update fails.
+    }
 
     // Start approval workflow
     try {

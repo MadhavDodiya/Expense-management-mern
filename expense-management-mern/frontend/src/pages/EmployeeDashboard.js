@@ -54,7 +54,7 @@ const EmployeeDashboard = () => {
             <div className="col-auto">
               <Link to="/expenses/new" className="btn btn-light">
                 <i className="fas fa-plus me-2"></i>
-                New Expense
+                New Expense Request
               </Link>
             </div>
           </div>
@@ -196,7 +196,7 @@ const EmployeeDashboard = () => {
                 <div className="col-md-4">
                   <Link to="/expenses/new" className="btn btn-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center py-4">
                     <i className="fas fa-plus-circle fa-2x mb-2"></i>
-                    <span>Submit New Expense</span>
+                    <span>Submit New Expense Request</span>
                   </Link>
                 </div>
                 <div className="col-md-4">

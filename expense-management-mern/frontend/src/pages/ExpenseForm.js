@@ -10,13 +10,28 @@ const ExpenseForm = () => {
   const { id } = useParams();
   const isEdit = Boolean(id);
 
+  const carCompaniesTop10 = [
+    'Maruti Suzuki',
+    'Hyundai',
+    'Tata Motors',
+    'Mahindra',
+    'Kia',
+    'Toyota',
+    'Honda',
+    'Renault',
+    'Volkswagen',
+    'Skoda'
+  ];
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     amount: '',
     currency: user?.company?.currency || 'USD',
     category: 'OTHER',
-    expenseDate: new Date().toISOString().split('T')[0]
+    expenseDate: new Date().toISOString().split('T')[0],
+    transportMode: '',
+    transportCompany: ''
   });
 
   const [receipts, setReceipts] = useState([]);
@@ -31,7 +46,9 @@ const ExpenseForm = () => {
         amount: expense.amount.toString(),
         currency: expense.currency,
         category: expense.category,
-        expenseDate: new Date(expense.expenseDate).toISOString().split('T')[0]
+        expenseDate: new Date(expense.expenseDate).toISOString().split('T')[0],
+        transportMode: expense.transportDetails?.mode || '',
+        transportCompany: expense.transportDetails?.company || ''
       });
     }
   }, [getExpense, id]);
@@ -43,7 +60,44 @@ const ExpenseForm = () => {
   }, [isEdit, id, loadExpense]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    // Keep transport-specific fields consistent.
+    if (name === 'category') {
+      setFormData(prev => ({
+        ...prev,
+        category: value,
+        transportMode: value === 'TRANSPORT' ? prev.transportMode : '',
+        transportCompany: value === 'TRANSPORT' ? prev.transportCompany : ''
+      }));
+      return;
+    }
+
+    if (name === 'transportMode') {
+      setFormData(prev => ({
+        ...prev,
+        transportMode: value,
+        // Clear company unless CAR is selected
+        transportCompany: value === 'CAR' ? prev.transportCompany : ''
+      }));
+      return;
+    }
+
+    if (name === 'transportCompany') {
+      setFormData(prev => {
+        const next = { ...prev, transportCompany: value };
+        // Auto-fill title to company name for stock tracking (only when using Transport->Car).
+        if (prev.category === 'TRANSPORT' && prev.transportMode === 'CAR') {
+          if (!prev.title || prev.title === prev.transportCompany) {
+            next.title = value;
+          }
+        }
+        return next;
+      });
+      return;
+    }
+
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = async (e) => {
@@ -96,13 +150,23 @@ const ExpenseForm = () => {
     'OFFICE_SUPPLIES', 'SOFTWARE', 'TRAINING', 'ENTERTAINMENT', 'OTHER'
   ];
 
+  const transportModes = [
+    { value: 'CAR', label: 'Car' },
+    { value: 'BIKE', label: 'Bike' },
+    { value: 'TAXI', label: 'Taxi' },
+    { value: 'BUS', label: 'Bus' },
+    { value: 'TRAIN', label: 'Train' },
+    { value: 'FLIGHT', label: 'Flight' },
+    { value: 'OTHER', label: 'Other' }
+  ];
+
   return (
     <div className="fade-in">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h1 className="h2 mb-0">{isEdit ? 'Edit Expense' : 'New Expense'}</h1>
+          <h1 className="h2 mb-0">{isEdit ? 'Edit Expense' : 'New Expense Request'}</h1>
           <p className="text-muted mb-0">
-            {isEdit ? 'Update expense details' : 'Submit a new expense for approval'}
+            {isEdit ? 'Update expense details' : 'Submit a new expense request for approval'}
           </p>
         </div>
       </div>
@@ -199,6 +263,47 @@ const ExpenseForm = () => {
                     />
                   </div>
                 </div>
+
+                {formData.category === 'TRANSPORT' && (
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Transport Type</label>
+                      <select
+                        className="form-select"
+                        name="transportMode"
+                        value={formData.transportMode}
+                        onChange={handleChange}
+                        required
+                      >
+                        <option value="">Select</option>
+                        {transportModes.map(m => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {formData.transportMode === 'CAR' && (
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Car Company</label>
+                        <select
+                          className="form-select"
+                          name="transportCompany"
+                          value={formData.transportCompany}
+                          onChange={handleChange}
+                          required
+                        >
+                          <option value="">Select</option>
+                          {carCompaniesTop10.map(name => (
+                            <option key={name} value={name}>{name}</option>
+                          ))}
+                        </select>
+                        <small className="form-text text-muted">
+                          Selecting a company will auto-fill the Expense Title (for stock tracking).
+                        </small>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="mb-4">
                   <label className="form-label">Receipt Upload</label>

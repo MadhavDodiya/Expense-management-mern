@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { EXPENSE_CATEGORIES } = require('../constants/expenseCategories');
 
 const ExpenseSchema = new mongoose.Schema({
   user: {
@@ -37,7 +38,7 @@ const ExpenseSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['TRAVEL', 'FOOD', 'ACCOMMODATION', 'TRANSPORT', 'OFFICE_SUPPLIES', 'SOFTWARE', 'TRAINING', 'ENTERTAINMENT', 'OTHER']
+    enum: EXPENSE_CATEGORIES
   },
   expenseDate: {
     type: Date,
@@ -114,6 +115,18 @@ const ExpenseSchema = new mongoose.Schema({
     type: String,
     enum: ['WEEKLY', 'MONTHLY', 'QUARTERLY'],
     default: undefined
+  },
+  transportDetails: {
+    mode: {
+      type: String,
+      enum: ['CAR', 'BIKE', 'TAXI', 'BUS', 'TRAIN', 'FLIGHT', 'OTHER'],
+      default: undefined
+    },
+    company: {
+      type: String,
+      trim: true,
+      default: ''
+    }
   }
 }, {
   timestamps: true

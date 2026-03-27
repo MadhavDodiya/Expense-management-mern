@@ -11,6 +11,10 @@ const companyRoutes = require('./routes/companies');
 const expenseRoutes = require('./routes/expenses');
 const approvalRoutes = require('./routes/approvals');
 const ocrRoutes = require('./routes/ocr');
+const stockRoutes = require('./routes/stocks');
+const stockTypeRoutes = require('./routes/stockTypes');
+const inventoryStockRoutes = require('./routes/inventory/stocks');
+const inventoryExpenseRoutes = require('./routes/inventory/expenses');
 
 // Load environment variables from backend/.env regardless of launch directory
 dotenv.config({ path: path.join(__dirname, '.env') });
@@ -40,6 +44,12 @@ app.use('/api/companies', companyRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/approvals', approvalRoutes);
 app.use('/api/ocr', ocrRoutes);
+app.use('/api/stocks', stockRoutes);
+app.use('/api/stock-types', stockTypeRoutes);
+
+// Inventory (3-level stock + expenses)
+app.use('/api/inventory/stocks', inventoryStockRoutes);
+app.use('/api/inventory/expenses', inventoryExpenseRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

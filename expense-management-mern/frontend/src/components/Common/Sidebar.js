@@ -27,7 +27,7 @@ const Sidebar = ({ isOpen }) => {
     {
       path: '/expenses/new',
       icon: 'fas fa-plus-circle',
-      label: 'New Expense',
+      label: 'New Expense Request',
       roles: ['ADMIN', 'MANAGER', 'EMPLOYEE']
     },
     // Manager/Admin items
@@ -48,6 +48,12 @@ const Sidebar = ({ isOpen }) => {
       path: '/settings',
       icon: 'fas fa-cog',
       label: 'Settings',
+      roles: ['ADMIN']
+    },
+    {
+      path: '/stocks',
+      icon: 'fas fa-boxes',
+      label: 'Stocks',
       roles: ['ADMIN']
     },
     // Common items
@@ -83,7 +89,7 @@ const Sidebar = ({ isOpen }) => {
             key={index}
             to={item.path}
             className={`nav-link text-white mb-2 d-flex align-items-center ${
-              isActive(item.path) ? 'active bg-green-500 text-primary' : ''
+              isActive(item.path) ? 'sidebar-link-active' : ''
             }`}
             style={{ 
               borderRadius: '10px',

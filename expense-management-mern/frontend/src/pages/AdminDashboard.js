@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
+import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import { useExpense } from '../context/ExpenseContext';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
@@ -10,6 +12,11 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarEle
 const AdminDashboard = () => {
   const { user, formatDate, formatCurrency } = useAuth();
   const { getCompanyExpenses, expenses } = useExpense();
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
+  const [stockSearch, setStockSearch] = useState('');
+  const [stocks, setStocks] = useState([]);
+  const [stocksLoading, setStocksLoading] = useState(false);
+  const [stocksSearch, setStocksSearch] = useState('');
   const [stats, setStats] = useState({
     totalExpenses: 0,
     pendingApprovals: 0,
@@ -25,6 +32,23 @@ const AdminDashboard = () => {
   useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
+
+  const loadStocks = useCallback(async () => {
+    try {
+      setStocksLoading(true);
+      const res = await axios.get('/api/stocks');
+      setStocks(res.data?.stocks || []);
+    } catch (error) {
+      console.error('Load stocks error:', error);
+      toast.error('Failed to load stocks');
+    } finally {
+      setStocksLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStocks();
+  }, [loadStocks]);
 
   const calculateStats = useCallback(() => {
     const totalExpenses = expenses.length;
@@ -53,6 +77,45 @@ const AdminDashboard = () => {
       calculateStats();
     }
   }, [expenses, calculateStats]);
+
+  const newExpenseRequests = useMemo(() => {
+    // Treat PENDING expenses as "New Expense Requests" for admins.
+    return [...expenses]
+      .filter(exp => exp.status === 'PENDING')
+      .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+  }, [expenses]);
+
+  const filteredNewExpenseRequests = useMemo(() => {
+    const q = (stockSearch || '').trim().toLowerCase();
+    if (!q) return newExpenseRequests;
+    return newExpenseRequests.filter(req => {
+      const title = (req.title || '').toString().toLowerCase();
+      const emp = `${req.user?.firstName || ''} ${req.user?.lastName || ''}`.trim().toLowerCase();
+      return title.includes(q) || emp.includes(q);
+    });
+  }, [newExpenseRequests, stockSearch]);
+
+  useEffect(() => {
+    if (newExpenseRequests.length === 0) {
+      if (selectedRequestId !== null) setSelectedRequestId(null);
+      return;
+    }
+
+    const stillExists = selectedRequestId && newExpenseRequests.some(e => e._id === selectedRequestId);
+    if (!stillExists) setSelectedRequestId(newExpenseRequests[0]._id);
+  }, [newExpenseRequests, selectedRequestId]);
+
+  const selectedRequest = useMemo(() => {
+    if (!selectedRequestId) return null;
+    return newExpenseRequests.find(e => e._id === selectedRequestId) || null;
+  }, [newExpenseRequests, selectedRequestId]);
+
+  const filteredStocks = useMemo(() => {
+    const q = (stocksSearch || '').trim().toLowerCase();
+    const list = [...(stocks || [])].sort((a, b) => (a.nameNormalized || '').localeCompare(b.nameNormalized || ''));
+    if (!q) return list;
+    return list.filter(s => (s.name || '').toString().toLowerCase().includes(q));
+  }, [stocks, stocksSearch]);
 
   // Chart data
   const statusChartData = {
@@ -92,199 +155,456 @@ const AdminDashboard = () => {
             <div className="col-auto">
               <Link to="/expenses/new" className="btn btn-light">
                 <i className="fas fa-plus me-2"></i>
-                New Expense
+                New Expense Request
               </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="row g-4 mb-4">
-        <div className="col-md-3">
-          <div className="card dashboard-stat">
-            <div className="card-body text-center">
-              <i className="fas fa-receipt fa-2x mb-3"></i>
-              <h3 className="mb-1">{stats.totalExpenses}</h3>
-              <p className="mb-0">Total Expenses</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card dashboard-stat">
-            <div className="card-body text-center">
-              <i className="fas fa-clock fa-2x mb-3"></i>
-              <h3 className="mb-1">{stats.pendingApprovals}</h3>
-              <p className="mb-0">Pending Approvals</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card dashboard-stat">
-            <div className="card-body text-center">
-              <i className="fas fa-check-circle fa-2x mb-3"></i>
-              <h3 className="mb-1">{stats.approvedExpenses}</h3>
-              <p className="mb-0">Approved Expenses</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card dashboard-stat">
-            <div className="card-body text-center">
-              <i className="fas fa-dollar-sign fa-2x mb-3"></i>
-              <h3 className="mb-1">{formatCurrency(stats.totalAmount, user?.company?.currency || 'USD')}</h3>
-              <p className="mb-0">Total Amount</p>
             </div>
           </div>
         </div>
       </div>
 
       <div className="row g-4">
-        {/* Charts */}
-        <div className="col-md-6">
-          <div className="card h-100">
+        {/* Sidebar: Stock Names */}
+        <div className="col-lg-3">
+          <div className="card h-100 position-sticky" style={{ top: '1rem' }}>
             <div className="card-header">
-              <h5 className="card-title mb-0">Expense Status Distribution</h5>
+              <div className="d-flex align-items-center justify-content-between gap-2">
+                <h5 className="card-title mb-0">Stock Names</h5>
+                <span className="badge bg-light text-dark">{newExpenseRequests.length}</span>
+              </div>
             </div>
-            <div className="card-body d-flex align-items-center justify-content-center">
-              {expenses.length > 0 ? (
-                <div style={{ width: '300px', height: '300px' }}>
-                  <Doughnut data={statusChartData} options={{ maintainAspectRatio: false }} />
+            <div className="card-body p-2 border-bottom">
+              <div className="input-group input-group-sm">
+                <span className="input-group-text">
+                  <i className="fas fa-search"></i>
+                </span>
+                <input
+                  className="form-control"
+                  placeholder="Search..."
+                  value={stockSearch}
+                  onChange={(e) => setStockSearch(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="card-body p-0" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
+              {filteredNewExpenseRequests.length > 0 ? (
+                <div className="list-group list-group-flush">
+                  {filteredNewExpenseRequests.map(req => {
+                    const isSelected = req._id === selectedRequestId;
+                    return (
+                      <button
+                        key={req._id}
+                        type="button"
+                        className={`list-group-item list-group-item-action ${isSelected ? 'active' : ''}`}
+                        onClick={() => setSelectedRequestId(req._id)}
+                      >
+                        <div className="d-flex justify-content-between align-items-center">
+                          <div className="fw-semibold text-truncate">{req.title}</div>
+                          <small className={isSelected ? 'text-white-50' : 'text-muted'}>
+                            {formatDate(req.createdAt)}
+                          </small>
+                        </div>
+                        <small className={isSelected ? 'text-white-50' : 'text-muted'}>
+                          {req.user?.firstName} {req.user?.lastName}
+                        </small>
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
-                <p className="text-muted">No expenses data available</p>
+                <div className="p-3 text-center text-muted">
+                  No matching requests
+                </div>
               )}
             </div>
-          </div>
-        </div>
-
-        <div className="col-md-6">
-          <div className="card h-100">
-            <div className="card-header">
-              <h5 className="card-title mb-0">Monthly Expense Trends</h5>
-            </div>
-            <div className="card-body">
-              {stats.monthlyExpenses.length > 0 ? (
-                <Bar data={monthlyChartData} options={{ maintainAspectRatio: false }} />
+            <div className="card-footer">
+              <div className="small text-muted">Updated Stocks</div>
+              {selectedRequest ? (
+                <>
+                  <div className="fw-semibold">{selectedRequest.status}</div>
+                  <div className="small text-muted">
+                    Updated: {formatDate(selectedRequest.updatedAt || selectedRequest.createdAt)}
+                  </div>
+                </>
               ) : (
-                <p className="text-muted">No monthly data available</p>
+                <div className="text-muted">-</div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Recent Expenses */}
-        <div className="col-12">
-          <div className="card">
+        {/* Main Content */}
+        <div className="col-lg-9">
+          {/* Stocks List */}
+          <div className="card mb-4">
             <div className="card-header d-flex justify-content-between align-items-center">
-              <h5 className="card-title mb-0">Recent Expenses</h5>
-              <Link to="/expenses" className="btn btn-sm btn-outline-primary">
-                View All
+              <h5 className="card-title mb-0">Stocks</h5>
+              <Link to="/stocks" className="btn btn-sm btn-outline-primary">
+                Manage Stocks
               </Link>
             </div>
             <div className="card-body">
-              {expenses.length > 0 ? (
+              <div className="row g-2 align-items-center mb-3">
+                <div className="col-md-6">
+                  <div className="input-group input-group-sm">
+                    <span className="input-group-text">
+                      <i className="fas fa-search"></i>
+                    </span>
+                    <input
+                      className="form-control"
+                      placeholder="Search stock..."
+                      value={stocksSearch}
+                      onChange={(e) => setStocksSearch(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="col-md-6 text-md-end">
+                  <button className="btn btn-sm btn-outline-secondary" onClick={loadStocks} disabled={stocksLoading}>
+                    <i className="fas fa-sync me-2"></i>
+                    {stocksLoading ? 'Loading...' : 'Refresh'}
+                  </button>
+                </div>
+              </div>
+
+              {stocksLoading ? (
+                <div className="text-center text-muted py-4">Loading stocks...</div>
+              ) : filteredStocks.length === 0 ? (
+                <div className="text-center text-muted py-4">No stock items</div>
+              ) : (
                 <div className="table-responsive">
-                  <table className="table table-hover">
+                  <table className="table table-hover align-middle mb-0">
                     <thead>
                       <tr>
-                        <th>Employee</th>
-                        <th>Title</th>
-                        <th>Amount</th>
-                        <th>Category</th>
-                        <th>Status</th>
-                        <th>Date</th>
+                        <th style={{ width: '140px' }}>Group</th>
+                        <th style={{ width: '180px' }}>Type</th>
+                        <th>Name</th>
+                        <th style={{ width: '120px' }}>Qty</th>
+                        <th style={{ width: '140px' }}>Max</th>
+                        <th style={{ width: '140px' }}>Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {expenses.slice(0, 10).map(expense => (
-                        <tr key={expense._id}>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2"
-                                   style={{ width: '32px', height: '32px', fontSize: '0.8rem' }}>
-                                {expense.user?.firstName?.charAt(0)}{expense.user?.lastName?.charAt(0)}
-                              </div>
-                              <div>
-                                <div className="fw-semibold">{expense.user?.firstName} {expense.user?.lastName}</div>
-                                <small className="text-muted">{expense.user?.email}</small>
-                              </div>
-                            </div>
-                          </td>
-                          <td>
-                            <Link to={`/expenses/${expense._id}`} className="text-decoration-none">
-                              {expense.title}
-                            </Link>
-                          </td>
-                          <td>
-                            <span className="fw-semibold">
-                              {formatCurrency(expense.convertedAmount, user?.company?.currency || expense.currency || 'USD')}
-                            </span>
-                            <br />
-                            <small className="text-muted">{user?.company?.currency}</small>
-                          </td>
-                          <td>
-                            <span className="badge bg-secondary">{expense.category}</span>
-                          </td>
-                          <td>
-                            <span className={`status-badge status-${expense.status.toLowerCase()}`}>
-                              {expense.status}
-                            </span>
-                          </td>
-                          <td>
-                            <small>
-                              {formatDate(expense.expenseDate)}
-                            </small>
-                          </td>
-                        </tr>
-                      ))}
+                      {filteredStocks.slice(0, 10).map(item => {
+                        const isLimited = Number(item.maxQuantity || 0) > 0;
+                        const isFull = isLimited && Number(item.quantity || 0) >= Number(item.maxQuantity || 0);
+                        const isBlocked = item.status === 'BLOCKED';
+                        return (
+                          <tr key={item._id}>
+                            <td>
+                              <span className="badge bg-light text-dark">
+                                {(item.typeId?.group || item.typeGroup || 'OTHER').toString().replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="badge bg-light text-dark">
+                                {(item.typeId?.name || item.type || 'OTHER').toString().replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td className="fw-semibold">{item.name}</td>
+                            <td>{item.quantity}</td>
+                            <td>{item.maxQuantity || 0}</td>
+                            <td>
+                              {isBlocked ? (
+                                <span className="badge bg-secondary">BLOCKED</span>
+                              ) : isFull ? (
+                                <span className="badge bg-danger">FULL</span>
+                              ) : (
+                                <span className="badge bg-success">ACTIVE</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
-              ) : (
-                <div className="text-center py-4">
-                  <i className="fas fa-receipt fa-3x text-muted mb-3"></i>
-                  <p className="text-muted">No expenses found</p>
-                  <Link to="/expenses/new" className="btn btn-primary">
-                    Create First Expense
-                  </Link>
+              )}
+
+              {filteredStocks.length > 10 && (
+                <div className="text-muted small mt-2">
+                  Showing 10 of {filteredStocks.length}. Use “Manage Stocks” to view all.
                 </div>
               )}
             </div>
           </div>
-        </div>
 
-        {/* Quick Actions */}
-        <div className="col-12">
-          <div className="card">
-            <div className="card-header">
-              <h5 className="card-title mb-0">Quick Actions</h5>
+          {/* New Expense Request */}
+          <div className="card mb-4">
+            <div className="card-header d-flex justify-content-between align-items-center">
+              <h5 className="card-title mb-0">New Expense Request</h5>
+              <Link to="/approvals" className="btn btn-sm btn-outline-primary">
+                Review in Approvals
+              </Link>
             </div>
             <div className="card-body">
-              <div className="row g-3">
-                <div className="col-md-3">
-                  <Link to="/users" className="btn btn-outline-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
-                    <i className="fas fa-users fa-2x mb-2"></i>
-                    <span>Manage Users</span>
+              {newExpenseRequests.length > 0 ? (
+                <>
+                  <div className="table-responsive">
+                    <table className="table table-hover mb-0">
+                      <thead>
+                        <tr>
+                          <th>Employee</th>
+                          <th>Title</th>
+                          <th>Amount</th>
+                          <th>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {newExpenseRequests.slice(0, 10).map(req => (
+                          <tr
+                            key={req._id}
+                            role="button"
+                            className={req._id === selectedRequestId ? 'table-active' : ''}
+                            onClick={() => setSelectedRequestId(req._id)}
+                          >
+                            <td>
+                              <div className="fw-semibold">{req.user?.firstName} {req.user?.lastName}</div>
+                              <small className="text-muted">{req.user?.email}</small>
+                            </td>
+                            <td className="fw-semibold">{req.title}</td>
+                            <td>
+                              {formatCurrency(req.convertedAmount, user?.company?.currency || req.currency || 'USD')}
+                            </td>
+                            <td>
+                              <small>{formatDate(req.createdAt)}</small>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {selectedRequest && (
+                    <div className="mt-3 p-3 border rounded">
+                      <div className="d-flex justify-content-between align-items-start gap-3">
+                        <div className="flex-grow-1">
+                          <div className="fw-semibold">{selectedRequest.title}</div>
+                          <div className="text-muted">{selectedRequest.description}</div>
+                        </div>
+                        <div className="text-end">
+                          <div className={`status-badge status-${selectedRequest.status.toLowerCase()}`}>
+                            {selectedRequest.status}
+                          </div>
+                          <div className="small text-muted mt-1">
+                            Updated: {formatDate(selectedRequest.updatedAt || selectedRequest.createdAt)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="row mt-3 g-2">
+                        <div className="col-md-4">
+                          <strong>Category:</strong> {selectedRequest.category}
+                        </div>
+                        <div className="col-md-4">
+                          <strong>Amount:</strong>{' '}
+                          {formatCurrency(selectedRequest.convertedAmount, user?.company?.currency || selectedRequest.currency || 'USD')}
+                        </div>
+                        <div className="col-md-4 text-md-end">
+                          <Link to={`/expenses/${selectedRequest._id}`} className="btn btn-sm btn-outline-primary me-2">
+                            View Details
+                          </Link>
+                          <Link to="/approvals" className="btn btn-sm btn-primary">
+                            Go To Approvals
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-muted mb-0">No new expense requests found.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="row g-4 mb-4">
+            <div className="col-md-3">
+              <div className="card dashboard-stat">
+                <div className="card-body text-center">
+                  <i className="fas fa-receipt fa-2x mb-3"></i>
+                  <h3 className="mb-1">{stats.totalExpenses}</h3>
+                  <p className="mb-0">Total Expenses</p>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card dashboard-stat">
+                <div className="card-body text-center">
+                  <i className="fas fa-clock fa-2x mb-3"></i>
+                  <h3 className="mb-1">{stats.pendingApprovals}</h3>
+                  <p className="mb-0">Pending Approvals</p>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card dashboard-stat">
+                <div className="card-body text-center">
+                  <i className="fas fa-check-circle fa-2x mb-3"></i>
+                  <h3 className="mb-1">{stats.approvedExpenses}</h3>
+                  <p className="mb-0">Approved Expenses</p>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card dashboard-stat">
+                <div className="card-body text-center">
+                  <i className="fas fa-dollar-sign fa-2x mb-3"></i>
+                  <h3 className="mb-1">{formatCurrency(stats.totalAmount, user?.company?.currency || 'USD')}</h3>
+                  <p className="mb-0">Total Amount</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="row g-4">
+            {/* Charts */}
+            <div className="col-md-6">
+              <div className="card h-100">
+                <div className="card-header">
+                  <h5 className="card-title mb-0">Expense Status Distribution</h5>
+                </div>
+                <div className="card-body d-flex align-items-center justify-content-center">
+                  {expenses.length > 0 ? (
+                    <div style={{ width: '300px', height: '300px' }}>
+                      <Doughnut data={statusChartData} options={{ maintainAspectRatio: false }} />
+                    </div>
+                  ) : (
+                    <p className="text-muted">No expenses data available</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="col-md-6">
+              <div className="card h-100">
+                <div className="card-header">
+                  <h5 className="card-title mb-0">Monthly Expense Trends</h5>
+                </div>
+                <div className="card-body">
+                  {stats.monthlyExpenses.length > 0 ? (
+                    <Bar data={monthlyChartData} options={{ maintainAspectRatio: false }} />
+                  ) : (
+                    <p className="text-muted">No monthly data available</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Expenses */}
+            <div className="col-12">
+              <div className="card">
+                <div className="card-header d-flex justify-content-between align-items-center">
+                  <h5 className="card-title mb-0">Recent Expenses</h5>
+                  <Link to="/expenses" className="btn btn-sm btn-outline-primary">
+                    View All
                   </Link>
                 </div>
-                <div className="col-md-3">
-                  <Link to="/approvals" className="btn btn-outline-success w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
-                    <i className="fas fa-check-circle fa-2x mb-2"></i>
-                    <span>Pending Approvals</span>
-                  </Link>
+                <div className="card-body">
+                  {expenses.length > 0 ? (
+                    <div className="table-responsive">
+                      <table className="table table-hover">
+                        <thead>
+                          <tr>
+                            <th>Employee</th>
+                            <th>Title</th>
+                            <th>Amount</th>
+                            <th>Category</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {expenses.slice(0, 10).map(expense => (
+                            <tr key={expense._id}>
+                              <td>
+                                <div className="d-flex align-items-center">
+                                  <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2"
+                                       style={{ width: '32px', height: '32px', fontSize: '0.8rem' }}>
+                                    {expense.user?.firstName?.charAt(0)}{expense.user?.lastName?.charAt(0)}
+                                  </div>
+                                  <div>
+                                    <div className="fw-semibold">{expense.user?.firstName} {expense.user?.lastName}</div>
+                                    <small className="text-muted">{expense.user?.email}</small>
+                                  </div>
+                                </div>
+                              </td>
+                              <td>
+                                <Link to={`/expenses/${expense._id}`} className="text-decoration-none">
+                                  {expense.title}
+                                </Link>
+                              </td>
+                              <td>
+                                <span className="fw-semibold">
+                                  {formatCurrency(expense.convertedAmount, user?.company?.currency || expense.currency || 'USD')}
+                                </span>
+                                <br />
+                                <small className="text-muted">{user?.company?.currency}</small>
+                              </td>
+                              <td>
+                                <span className="badge bg-secondary">{expense.category}</span>
+                              </td>
+                              <td>
+                                <span className={`status-badge status-${expense.status.toLowerCase()}`}>
+                                  {expense.status}
+                                </span>
+                              </td>
+                              <td>
+                                <small>
+                                  {formatDate(expense.expenseDate)}
+                                </small>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <i className="fas fa-receipt fa-3x text-muted mb-3"></i>
+                      <p className="text-muted">No expenses found</p>
+                      <Link to="/expenses/new" className="btn btn-primary">
+                        Create First Expense
+                      </Link>
+                    </div>
+                  )}
                 </div>
-                <div className="col-md-3">
-                  <Link to="/settings" className="btn btn-outline-info w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
-                    <i className="fas fa-cog fa-2x mb-2"></i>
-                    <span>Company Settings</span>
-                  </Link>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="col-12">
+              <div className="card">
+                <div className="card-header">
+                  <h5 className="card-title mb-0">Quick Actions</h5>
                 </div>
-                <div className="col-md-3">
-                  <Link to="/expenses" className="btn btn-outline-warning w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
-                    <i className="fas fa-chart-bar fa-2x mb-2"></i>
-                    <span>View Reports</span>
-                  </Link>
+                <div className="card-body">
+                  <div className="row g-3">
+                    <div className="col-md-3">
+                      <Link to="/users" className="btn btn-outline-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
+                        <i className="fas fa-users fa-2x mb-2"></i>
+                        <span>Manage Users</span>
+                      </Link>
+                    </div>
+                    <div className="col-md-3">
+                      <Link to="/approvals" className="btn btn-outline-success w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
+                        <i className="fas fa-check-circle fa-2x mb-2"></i>
+                        <span>Pending Approvals</span>
+                      </Link>
+                    </div>
+                    <div className="col-md-3">
+                      <Link to="/settings" className="btn btn-outline-info w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
+                        <i className="fas fa-cog fa-2x mb-2"></i>
+                        <span>Company Settings</span>
+                      </Link>
+                    </div>
+                    <div className="col-md-3">
+                      <Link to="/expenses" className="btn btn-outline-warning w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
+                        <i className="fas fa-chart-bar fa-2x mb-2"></i>
+                        <span>View Reports</span>
+                      </Link>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

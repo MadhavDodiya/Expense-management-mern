@@ -25,6 +25,7 @@ import ExpenseDetails from './pages/ExpenseDetails';
 import ApprovalQueue from './pages/ApprovalQueue';
 import UserManagement from './pages/UserManagement';
 import CompanySettings from './pages/CompanySettings';
+import StockManagement from './pages/StockManagement';
 import Profile from './pages/Profile';
 
 function App() {
@@ -62,6 +63,9 @@ function App() {
 
                 {/* Settings */}
                 <Route path="settings" element={<PrivateRoute roles={['ADMIN']}><CompanySettings /></PrivateRoute>} />
+
+                {/* Stocks */}
+                <Route path="stocks" element={<PrivateRoute roles={['ADMIN']}><StockManagement /></PrivateRoute>} />
 
                 {/* Profile */}
                 <Route path="profile" element={<Profile />} />

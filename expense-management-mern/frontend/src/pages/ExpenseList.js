@@ -117,7 +117,7 @@ const ExpenseList = () => {
         </div>
         <Link to="/expenses/new" className="btn btn-primary">
           <i className="fas fa-plus me-2"></i>
-          New Expense
+          New Expense Request
         </Link>
       </div>
 
@@ -419,7 +419,7 @@ const ExpenseList = () => {
               </p>
               <Link to="/expenses/new" className="btn btn-primary">
                 <i className="fas fa-plus me-2"></i>
-                Create New Expense
+                Create New Expense Request
               </Link>
             </div>
           )}
