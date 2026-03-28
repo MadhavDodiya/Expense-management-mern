@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { useAuth } from '../context/AuthContext';
 
 const StockManagement = () => {
+  const { user } = useAuth();
+  const canManageStocks = user?.role === 'ADMIN';
+
   const [loading, setLoading] = useState(true);
   const [stocks, setStocks] = useState([]);
 
@@ -319,7 +323,9 @@ const StockManagement = () => {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h1 className="h2 mb-0">Stocks</h1>
-          <p className="text-muted mb-0">Manage stock quantity, capacity, and types</p>
+          <p className="text-muted mb-0">
+            {canManageStocks ? 'Manage stock quantity, capacity, and types' : 'View company stock list (read-only)'}
+          </p>
         </div>
         <button className="btn btn-outline-primary" onClick={loadStocks}>
           <i className="fas fa-sync me-2"></i>
@@ -327,6 +333,7 @@ const StockManagement = () => {
         </button>
       </div>
 
+      {canManageStocks && (
       <div className="card mb-4">
         <div className="card-header d-flex justify-content-between align-items-center">
           <h5 className="mb-0">Add Stock Item</h5>
@@ -578,6 +585,7 @@ const StockManagement = () => {
           </details>
         </div>
       </div>
+      )}
 
       <div className="card">
         <div className="card-header d-flex justify-content-between align-items-center">
@@ -626,7 +634,7 @@ const StockManagement = () => {
                     <th style={{ width: '140px' }}>Quantity</th>
                     <th style={{ width: '160px' }}>Max Quantity</th>
                     <th style={{ width: '140px' }}>Status</th>
-                    <th style={{ width: '340px' }}>Actions</th>
+                    {canManageStocks && <th style={{ width: '340px' }}>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -657,6 +665,7 @@ const StockManagement = () => {
                             </span>
                           )}
                         </td>
+                        {canManageStocks && (
                         <td>
                           <div className="d-flex gap-2 flex-wrap">
                             <button
@@ -697,6 +706,7 @@ const StockManagement = () => {
                             </button>
                           </div>
                         </td>
+                        )}
                       </tr>
                     );
                   })}

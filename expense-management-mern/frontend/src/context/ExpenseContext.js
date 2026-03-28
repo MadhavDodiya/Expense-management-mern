@@ -339,7 +339,10 @@ export const ExpenseProvider = ({ children }) => {
         payload: state.pendingApprovals.filter(expense => expense._id !== expenseId)
       });
 
-      toast.success(`Expense ${decision.toLowerCase()} successfully`);
+      toast.success(res.data?.message || `Expense ${decision.toLowerCase()} successfully`);
+      if (res.data?.stockUpdated && res.data?.stock?.name) {
+        toast.info(`Stock updated: ${res.data.stock.name} (qty: ${res.data.stock.quantity ?? '-'})`);
+      }
       return res.data.expense;
     } catch (error) {
       console.error('Process approval error:', error);

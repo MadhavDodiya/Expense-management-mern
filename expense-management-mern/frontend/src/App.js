@@ -65,7 +65,7 @@ function App() {
                 <Route path="settings" element={<PrivateRoute roles={['ADMIN']}><CompanySettings /></PrivateRoute>} />
 
                 {/* Stocks */}
-                <Route path="stocks" element={<PrivateRoute roles={['ADMIN']}><StockManagement /></PrivateRoute>} />
+                <Route path="stocks" element={<PrivateRoute><StockManagement /></PrivateRoute>} />
 
                 {/* Profile */}
                 <Route path="profile" element={<Profile />} />

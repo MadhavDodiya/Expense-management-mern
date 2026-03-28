@@ -47,7 +47,8 @@ const ApprovalQueue = () => {
                       <strong>Amount:</strong> {formatCurrency(expense.convertedAmount, user?.company?.currency || 'USD')}
                     </div>
                     <div className="col-6">
-                      <strong>Category:</strong> {expense.category}
+                      <strong>Category:</strong> {expense.category.replace(/_/g, ' ')}
+                      {expense.categoryType ? ` / ${expense.categoryType.replace(/_/g, ' ')}` : ''}
                     </div>
                   </div>
 

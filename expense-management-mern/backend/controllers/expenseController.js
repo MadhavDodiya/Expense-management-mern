@@ -52,6 +52,7 @@ const formatReceiptText = (expense, generatedAt = new Date()) => {
     `Title: ${safeTitle}`,
     `Description: ${expense.description || '-'}`,
     `Category: ${expense.category || '-'}`,
+    `Category Type: ${expense.categoryType || '-'}`,
     `Amount: ${amount.toFixed(2)} ${currency}`,
     `Converted Amount: ${convertedAmount.toFixed(2)}`,
     `Expense Date & Time: ${formatDateTime(expense.expenseDate)}`,
@@ -423,6 +424,7 @@ const createExpense = async (req, res) => {
       amount,
       currency,
       category,
+      categoryType,
       expenseDate,
       ocrData,
       transportMode,
@@ -448,6 +450,29 @@ const createExpense = async (req, res) => {
     const user = await User.findById(req.user.id).populate('company');
     if (!user || !user.company) {
       return res.status(400).json({ message: 'User company information is missing' });
+    }
+
+    // If stock already exists and is full/blocked, do not allow submitting a new request.
+    // (Stocks quantity increments only on final approval, but maxQuantity still indicates capacity.)
+    const submittedStockName = (title || '').toString().trim();
+    const submittedNameNormalized = normalizeStockName(submittedStockName);
+    if (submittedNameNormalized) {
+      const existingStock = await StockItem.findOne({
+        company: req.user.company,
+        nameNormalized: submittedNameNormalized
+      }).select('name status quantity maxQuantity');
+
+      if (existingStock && existingStock.status === 'BLOCKED') {
+        return res.status(400).json({
+          message: `Stock is blocked for "${existingStock.name}". Cannot submit this request.`
+        });
+      }
+
+      if (existingStock && existingStock.maxQuantity > 0 && existingStock.quantity >= existingStock.maxQuantity) {
+        return res.status(400).json({
+          message: `Stock is full for "${existingStock.name}". Cannot submit this request.`
+        });
+      }
     }
 
     let convertedAmount = numericAmount;
@@ -479,6 +504,9 @@ const createExpense = async (req, res) => {
       currency,
       convertedAmount,
       category,
+      categoryType: category === 'TRANSPORT'
+        ? ((transportMode || categoryType || '').toString().trim())
+        : ((categoryType || '').toString().trim()),
       expenseDate: parsedExpenseDate,
       receipts: [],
       ocrData: parsedOcrData,
@@ -881,7 +909,10 @@ const updateExpense = async (req, res) => {
       amount,
       currency,
       category,
-      expenseDate
+      categoryType,
+      expenseDate,
+      transportMode,
+      transportCompany
     } = req.body;
 
     const expense = await Expense.findOne({ 
@@ -897,6 +928,28 @@ const updateExpense = async (req, res) => {
       return res.status(400).json({ message: 'Cannot edit expense after approval process has started' });
     }
 
+    // Prevent updates that would target a blocked/full stock item.
+    const nextTitle = (title !== undefined ? title : expense.title) || '';
+    const nextNameNormalized = normalizeStockName(nextTitle.toString().trim());
+    if (nextNameNormalized) {
+      const existingStock = await StockItem.findOne({
+        company: req.user.company,
+        nameNormalized: nextNameNormalized
+      }).select('name status quantity maxQuantity');
+
+      if (existingStock && existingStock.status === 'BLOCKED') {
+        return res.status(400).json({
+          message: `Stock is blocked for "${existingStock.name}". Cannot update this request.`
+        });
+      }
+
+      if (existingStock && existingStock.maxQuantity > 0 && existingStock.quantity >= existingStock.maxQuantity) {
+        return res.status(400).json({
+          message: `Stock is full for "${existingStock.name}". Cannot update this request.`
+        });
+      }
+    }
+
     // Convert amount if currency changed
     const user = await User.findById(req.user.id).populate('company');
     const numericAmount = amount !== undefined ? Number(amount) : expense.amount;
@@ -910,13 +963,36 @@ const updateExpense = async (req, res) => {
       convertedAmount = await convertCurrency(numericAmount, currency, user.company.currency);
     }
 
+    const nextCategory = category || expense.category;
+    const categoryChanged = Boolean(category) && category !== expense.category;
+
+    let nextCategoryType = expense.categoryType || '';
+    if (categoryType !== undefined) {
+      nextCategoryType = (categoryType || '').toString().trim();
+    } else if (categoryChanged) {
+      nextCategoryType = '';
+    }
+
     // Update expense
     expense.title = title || expense.title;
     expense.description = description || expense.description;
     expense.amount = numericAmount;
     expense.currency = currency || expense.currency;
     expense.convertedAmount = convertedAmount;
-    expense.category = category || expense.category;
+    expense.category = nextCategory;
+
+    if (nextCategory === 'TRANSPORT') {
+      const modeValue = (transportMode || '').toString().trim();
+      const companyValue = (transportCompany || '').toString().trim();
+      expense.transportDetails = {
+        mode: modeValue || undefined,
+        company: companyValue
+      };
+      expense.categoryType = modeValue || nextCategoryType || '';
+    } else {
+      expense.transportDetails = undefined;
+      expense.categoryType = nextCategoryType;
+    }
     if (expenseDate) {
       const parsedUpdateDate = new Date(expenseDate);
       if (Number.isNaN(parsedUpdateDate.getTime())) {

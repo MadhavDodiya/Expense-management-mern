@@ -149,7 +149,7 @@ const ExpenseList = () => {
               >
                 <option value="ALL">All Categories</option>
                 {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat.replace('_', ' ')}</option>
+                  <option key={cat} value={cat}>{cat.replace(/_/g, ' ')}</option>
                 ))}
               </select>
             </div>
@@ -322,7 +322,10 @@ const ExpenseList = () => {
                           </div>
                         </td>
                         <td>
-                          <span className="badge bg-secondary">{expense.category.replace('_', ' ')}</span>
+                          <span className="badge bg-secondary">
+                            {expense.category.replace(/_/g, ' ')}
+                            {expense.categoryType ? ` / ${expense.categoryType.replace(/_/g, ' ')}` : ''}
+                          </span>
                         </td>
                         <td>
                           <span className={`status-badge status-${expense.status.toLowerCase()}`}>

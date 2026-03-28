@@ -105,7 +105,10 @@ const ExpenseDetails = () => {
               <div className="row">
                 <div className="col-md-6">
                   <p><strong>Amount:</strong> {formatCurrency(currentExpense.amount, currentExpense.currency)}</p>
-                  <p><strong>Category:</strong> {currentExpense.category.replace('_', ' ')}</p>
+                  <p><strong>Category:</strong> {currentExpense.category.replace(/_/g, ' ')}</p>
+                  {currentExpense.categoryType && (
+                    <p><strong>Type:</strong> {currentExpense.categoryType.replace(/_/g, ' ')}</p>
+                  )}
                 </div>
                 <div className="col-md-6">
                   <p><strong>Date:</strong> {formatDate(currentExpense.expenseDate)}</p>

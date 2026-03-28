@@ -9,10 +9,10 @@ const {
 
 const router = express.Router();
 
-router.get('/', auth, authorize('ADMIN'), listStockTypes);
+// Anyone logged in can view stock types for selection/display.
+router.get('/', auth, listStockTypes);
 router.post('/', auth, authorize('ADMIN'), createStockType);
 router.put('/:id', auth, authorize('ADMIN'), updateStockType);
 router.delete('/:id', auth, authorize('ADMIN'), deleteStockType);
 
 module.exports = router;
-

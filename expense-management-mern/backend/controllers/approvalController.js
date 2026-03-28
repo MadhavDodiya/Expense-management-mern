@@ -80,6 +80,8 @@ const processApproval = async (req, res) => {
       return res.status(400).json({ message: 'Invalid decision value' });
     }
 
+    const isAdmin = req.user.role === 'ADMIN';
+
     const expense = await Expense.findById(expenseId)
       .populate('user', 'firstName lastName email preferences')
       .populate('approvalFlow');
@@ -106,12 +108,13 @@ const processApproval = async (req, res) => {
       }
     );
 
-    if (approvalIndex === -1 && expense.approvals.length > 0) {
-      return res.status(400).json({ message: 'No pending approval found for this user' });
-    }
+    if (approvalIndex === -1) {
+      if (expense.approvals.length > 0 && !isAdmin) {
+        return res.status(400).json({ message: 'No pending approval found for this user' });
+      }
 
-    if (approvalIndex === -1 && expense.approvals.length === 0) {
-      // Fallback: allow manual approval when no approval chain exists
+      // Fallback: allow manual approval when no approval chain exists,
+      // and allow ADMIN override even if not assigned in the chain.
       expense.approvals.push({
         approver: req.user.id,
         status: decision,
@@ -126,15 +129,21 @@ const processApproval = async (req, res) => {
       expense.approvals[approvalIndex].actionDate = new Date();
     }
 
+    let approvalFinalized = false;
+    let stockUpdated = false;
+    let updatedStock = null;
     if (decision === 'REJECTED') {
       // If rejected, update expense status
       expense.status = 'REJECTED';
       expense.rejectionReason = comments;
+      approvalFinalized = true;
     } else if (decision === 'APPROVED') {
       // Check if all required approvals are complete
-      const isFullyApproved = await checkApprovalCompletion(expense);
+      // ADMIN can override the chain and finalize immediately.
+      const isFullyApproved = isAdmin ? true : await checkApprovalCompletion(expense);
 
       if (isFullyApproved) {
+        approvalFinalized = true;
         // If stock for the item is full, do not allow final approval.
         const stockName = (expense.title || '').toString().trim();
         const nameNormalized = normalizeStockName(stockName);
@@ -156,6 +165,8 @@ const processApproval = async (req, res) => {
             stock.quantity = Math.max(0, Number(stock.quantity || 0)) + 1;
             stock.lastUpdatedFromExpense = expense._id;
             await stock.save();
+            stockUpdated = true;
+            updatedStock = stock;
           } else {
             // Best-effort type linkage (fallback to legacy label).
             const StockType = require('../models/StockType');
@@ -165,7 +176,7 @@ const processApproval = async (req, res) => {
               nameNormalized: normalizeStockName(categoryName)
             }).select('_id name group');
 
-            await StockItem.create({
+            const created = await StockItem.create({
               company: expense.company,
               name: stockName,
               nameNormalized,
@@ -177,6 +188,8 @@ const processApproval = async (req, res) => {
               status: 'ACTIVE',
               lastUpdatedFromExpense: expense._id
             });
+            stockUpdated = true;
+            updatedStock = created;
           }
         }
 
@@ -201,8 +214,22 @@ const processApproval = async (req, res) => {
       });
     }
 
+    let message = 'Approval processed';
+    if (decision === 'REJECTED') {
+      message = 'Expense rejected successfully';
+    } else if (decision === 'APPROVED') {
+      if (approvalFinalized) {
+        message = isAdmin ? 'Expense approved (admin override)' : 'Expense approved successfully';
+      } else {
+        message = 'Approval recorded. Waiting for other approvers.';
+      }
+    }
+
     res.json({
-      message: `Expense ${decision.toLowerCase()} successfully`,
+      message,
+      approvalFinalized,
+      stockUpdated,
+      stock: updatedStock,
       expense
     });
   } catch (error) {

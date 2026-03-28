@@ -40,6 +40,11 @@ const ExpenseSchema = new mongoose.Schema({
     required: true,
     enum: EXPENSE_CATEGORIES
   },
+  categoryType: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   expenseDate: {
     type: Date,
     required: true

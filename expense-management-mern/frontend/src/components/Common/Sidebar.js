@@ -54,7 +54,7 @@ const Sidebar = ({ isOpen }) => {
       path: '/stocks',
       icon: 'fas fa-boxes',
       label: 'Stocks',
-      roles: ['ADMIN']
+      roles: ['ADMIN', 'MANAGER', 'EMPLOYEE']
     },
     // Common items
     {

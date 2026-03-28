@@ -10,3 +10,9 @@
 9 verbose logfile logs-max:10 dir:C:\Madhav Dodiya\Expense-management-mern\expense-management-mern\frontend-npm-cache\_logs\2026-03-27T06_50_09_972Z-
 10 verbose logfile C:\Madhav Dodiya\Expense-management-mern\expense-management-mern\frontend-npm-cache\_logs\2026-03-27T06_50_09_972Z-debug-0.log
 11 silly logfile done cleaning log files
+12 verbose cwd C:\Madhav Dodiya\Expense-management-mern\expense-management-mern\frontend
+13 verbose os Windows_NT 10.0.26200
+14 verbose node v24.12.0
+15 verbose npm  v11.12.0
+16 verbose exit -1073741510
+17 verbose code -1073741510

@@ -311,7 +311,8 @@ const AdminDashboard = () => {
                       </div>
                       <div className="row mt-3 g-2">
                         <div className="col-md-4">
-                          <strong>Category:</strong> {selectedRequest.category}
+                          <strong>Category:</strong> {selectedRequest.category.replace(/_/g, ' ')}
+                          {selectedRequest.categoryType ? ` / ${selectedRequest.categoryType.replace(/_/g, ' ')}` : ''}
                         </div>
                         <div className="col-md-4">
                           <strong>Amount:</strong>{' '}
@@ -462,7 +463,10 @@ const AdminDashboard = () => {
                                 <small className="text-muted">{user?.company?.currency}</small>
                               </td>
                               <td>
-                                <span className="badge bg-secondary">{expense.category}</span>
+                                <span className="badge bg-secondary">
+                                  {expense.category.replace(/_/g, ' ')}
+                                  {expense.categoryType ? ` / ${expense.categoryType.replace(/_/g, ' ')}` : ''}
+                                </span>
                               </td>
                               <td>
                                 <span className={`status-badge status-${expense.status.toLowerCase()}`}>

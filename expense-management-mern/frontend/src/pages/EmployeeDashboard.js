@@ -143,7 +143,10 @@ const EmployeeDashboard = () => {
                             <small className="text-muted">{expense.currency}</small>
                           </td>
                           <td>
-                            <span className="badge bg-secondary">{expense.category}</span>
+                            <span className="badge bg-secondary">
+                              {expense.category.replace(/_/g, ' ')}
+                              {expense.categoryType ? ` / ${expense.categoryType.replace(/_/g, ' ')}` : ''}
+                            </span>
                           </td>
                           <td>
                             <span className={`status-badge status-${expense.status.toLowerCase()}`}>

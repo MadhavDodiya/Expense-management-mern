@@ -29,6 +29,7 @@ const ExpenseForm = () => {
     amount: '',
     currency: user?.company?.currency || 'USD',
     category: 'OTHER',
+    categoryType: '',
     expenseDate: new Date().toISOString().split('T')[0],
     transportMode: '',
     transportCompany: ''
@@ -46,6 +47,7 @@ const ExpenseForm = () => {
         amount: expense.amount.toString(),
         currency: expense.currency,
         category: expense.category,
+        categoryType: expense.categoryType || (expense.category === 'TRANSPORT' ? (expense.transportDetails?.mode || '') : ''),
         expenseDate: new Date(expense.expenseDate).toISOString().split('T')[0],
         transportMode: expense.transportDetails?.mode || '',
         transportCompany: expense.transportDetails?.company || ''
@@ -67,9 +69,15 @@ const ExpenseForm = () => {
       setFormData(prev => ({
         ...prev,
         category: value,
+        categoryType: value === prev.category ? prev.categoryType : '',
         transportMode: value === 'TRANSPORT' ? prev.transportMode : '',
         transportCompany: value === 'TRANSPORT' ? prev.transportCompany : ''
       }));
+      return;
+    }
+
+    if (name === 'categoryType') {
+      setFormData(prev => ({ ...prev, categoryType: value }));
       return;
     }
 
@@ -77,6 +85,7 @@ const ExpenseForm = () => {
       setFormData(prev => ({
         ...prev,
         transportMode: value,
+        categoryType: value,
         // Clear company unless CAR is selected
         transportCompany: value === 'CAR' ? prev.transportCompany : ''
       }));
@@ -149,6 +158,17 @@ const ExpenseForm = () => {
     'TRAVEL', 'FOOD', 'ACCOMMODATION', 'TRANSPORT', 
     'OFFICE_SUPPLIES', 'SOFTWARE', 'TRAINING', 'ENTERTAINMENT', 'OTHER'
   ];
+
+  const categoryTypes = {
+    TRAVEL: ['AIRFARE', 'HOTEL', 'VISA', 'MEALS', 'LOCAL_TRANSPORT', 'OTHER'],
+    FOOD: ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS', 'CLIENT_MEETING', 'OTHER'],
+    ACCOMMODATION: ['HOTEL', 'GUEST_HOUSE', 'AIRBNB', 'OTHER'],
+    OFFICE_SUPPLIES: ['STATIONERY', 'EQUIPMENT', 'FURNITURE', 'PRINTING', 'OTHER'],
+    SOFTWARE: ['SUBSCRIPTION', 'LICENSE', 'CLOUD', 'OTHER'],
+    TRAINING: ['COURSE', 'CERTIFICATION', 'CONFERENCE', 'WORKSHOP', 'OTHER'],
+    ENTERTAINMENT: ['TEAM_EVENT', 'CLIENT_EVENT', 'GIFTS', 'OTHER'],
+    OTHER: []
+  };
 
   const transportModes = [
     { value: 'CAR', label: 'Car' },
@@ -246,7 +266,7 @@ const ExpenseForm = () => {
                     >
                       {categories.map(cat => (
                         <option key={cat} value={cat}>
-                          {cat.replace('_', ' ')}
+                          {cat.replace(/_/g, ' ')}
                         </option>
                       ))}
                     </select>
@@ -263,6 +283,27 @@ const ExpenseForm = () => {
                     />
                   </div>
                 </div>
+
+                {formData.category !== 'TRANSPORT' && (categoryTypes[formData.category] || []).length > 0 && (
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Category Type</label>
+                      <select
+                        className="form-select"
+                        name="categoryType"
+                        value={formData.categoryType}
+                        onChange={handleChange}
+                      >
+                        <option value="">Select</option>
+                        {(categoryTypes[formData.category] || []).map((type) => (
+                          <option key={type} value={type}>
+                            {type.replace(/_/g, ' ')}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
 
                 {formData.category === 'TRANSPORT' && (
                   <div className="row">
