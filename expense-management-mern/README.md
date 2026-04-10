@@ -1,300 +1,479 @@
-# Expense Management System - MERN Stack
+# Expense Management System
 
-A comprehensive expense management system built with MongoDB, Express.js, React, and Node.js. This application provides multi-level approval workflows, OCR receipt scanning, and role-based access control for efficient expense tracking and approval.
+This project is a MERN stack expense management platform for company expense tracking, approvals, OCR receipt scanning, reporting, and role-based access control.
 
-## Features
+It supports:
+- employee expense submission
+- manager approval workflow
+- admin-level company management
+- receipt upload and OCR parsing
+- currency-aware expense handling
+- analytics dashboards and export flows
 
-### Core Functionality
-- **Multi-Role Support**: Admin, Manager, and Employee roles with specific permissions
-- **Expense Submission**: Easy expense creation with receipt upload
-- **OCR Integration**: Automatic receipt scanning and data extraction
-- **Multi-Level Approvals**: Configurable approval workflows
-- **Currency Support**: Multi-currency support with automatic conversion
-- **Real-time Dashboard**: Role-based dashboards with analytics
-- **Responsive Design**: Mobile-friendly interface
+## Project Summary
 
-### Advanced Features
-- **Conditional Approval Rules**: Percentage-based and specific approver rules
-- **Receipt Management**: Multiple receipt uploads per expense
-- **Audit Trail**: Complete approval history tracking
-- **Email Notifications**: Automated notification system
-- **Company Management**: Multi-tenant architecture
-- **Data Export**: Export expenses to various formats
+- **Frontend:** React 18 with React Router, Bootstrap, Axios, Chart.js, toast notifications, and form helpers.
+- **Backend:** Node.js with Express, MongoDB, Mongoose, JWT authentication, file upload support, OCR, email notifications, and scheduled jobs.
+- **Database:** MongoDB.
+- **Architecture:** MERN, with a separate backend API and React client.
+- **Deployment support:** Local development and Vercel deployment are both configured.
 
-## Technology Stack
+## Package Inventory
 
-### Backend
-- **Node.js**: Runtime environment
-- **Express.js**: Web application framework
-- **MongoDB**: NoSQL database
-- **Mongoose**: MongoDB object modeling
-- **JWT**: Authentication tokens
-- **Multer**: File upload handling
-- **Tesseract.js**: OCR processing
-- **Bcrypt**: Password hashing
+The project currently includes these installed npm packages in `package.json` files.
 
-### Frontend
-- **React**: Frontend library
-- **React Router**: Client-side routing
-- **Bootstrap**: CSS framework
-- **Axios**: HTTP client
-- **Chart.js**: Data visualization
-- **React-Toastify**: Notifications
+### Root Package
 
-## Project Structure
+- `concurrently` for running backend and frontend together during development.
 
-```
+### Frontend Dependencies
+
+The frontend uses 18 runtime packages:
+
+- `react`
+- `react-dom`
+- `react-router-dom`
+- `react-scripts`
+- `axios`
+- `bootstrap`
+- `react-bootstrap`
+- `react-toastify`
+- `react-datepicker`
+- `react-dropzone`
+- `chart.js`
+- `react-chartjs-2`
+- `moment`
+- `react-select`
+- `react-table`
+- `@testing-library/jest-dom`
+- `@testing-library/react`
+- `@testing-library/user-event`
+
+### Backend Dependencies
+
+The backend uses 15 runtime packages and 2 development packages:
+
+- `express`
+- `mongoose`
+- `jsonwebtoken`
+- `bcryptjs`
+- `cors`
+- `dotenv`
+- `multer`
+- `tesseract.js`
+- `jimp`
+- `nodemailer`
+- `node-cron`
+- `compression`
+- `axios`
+- `moment`
+- `uuid`
+- `jest` for tests
+- `nodemon` for development reloads
+
+### What These Packages Do
+
+- `axios`: API requests from frontend and backend utilities.
+- `bootstrap` and `react-bootstrap`: UI layout and components.
+- `chart.js` and `react-chartjs-2`: dashboard charts and analytics.
+- `react-toastify`: success and error notifications.
+- `react-datepicker`: date input handling.
+- `react-dropzone`: file upload interactions.
+- `react-select`: searchable select inputs.
+- `react-table`: tabular data rendering.
+- `express`: REST API server.
+- `mongoose`: MongoDB schema and model layer.
+- `jsonwebtoken`: login token creation and verification.
+- `bcryptjs`: password hashing.
+- `multer`: receipt and logo file uploads.
+- `tesseract.js`: OCR text extraction from receipts.
+- `jimp`: image processing for OCR pre-processing.
+- `nodemailer`: email delivery.
+- `node-cron`: scheduled background jobs.
+- `compression`: response compression.
+- `cors`: cross-origin requests from the React app.
+- `dotenv`: environment variable loading.
+- `uuid`: unique identifiers.
+
+## Repository Structure
+
+```text
 expense-management-mern/
-├── backend/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── models/
-│   ├── routes/
-│   ├── utils/
-│   ├── config/
-│   ├── uploads/
-│   ├── server.js
-│   └── package.json
-├── frontend/
-│   ├── public/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── context/
-│   │   ├── utils/
-│   │   └── styles/
-│   └── package.json
-└── README.md
+|-- api/
+|   `-- index.js
+|-- backend/
+|   |-- controllers/
+|   |-- middleware/
+|   |-- models/
+|   |-- routes/
+|   |-- utils/
+|   |-- uploads/
+|   `-- server.js
+|-- frontend/
+|   |-- public/
+|   `-- src/
+|       |-- components/
+|       |-- context/
+|       `-- pages/
+|-- package.json
+|-- vercel.json
+`-- README.md
 ```
 
-## Installation & Setup
+## Application Modules
 
-### Prerequisites
-- Node.js (v14 or higher)
-- MongoDB (v4.4 or higher)
-- npm or yarn
+This codebase currently contains:
 
-### Backend Setup
+- **15 frontend pages**
+- **6 shared frontend components**
+- **2 frontend contexts**
+- **11 backend routes**
+- **10 backend controllers**
+- **10 backend models**
+- **2 backend middleware modules**
+- **2 backend utility modules**
 
-1. **Navigate to backend directory**
-   ```bash
-   cd backend
-   ```
+## Frontend Pages
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+The frontend pages are located in `frontend/src/pages`.
 
-3. **Environment Configuration**
-   Create a `.env` file in the backend directory:
-   ```env
-   NODE_ENV=development
-   PORT=5000
-   MONGODB_URI=mongodb://localhost:27017/expense_management
-   JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-   ```
+### Authentication and Access
 
-4. **Start MongoDB**
-   Make sure MongoDB is running on your system.
+- `Login`: Handles user sign-in and stores the JWT token.
+- `Register`: Creates a company and initial admin account.
+- `ForgotPassword`: Starts the password reset flow.
+- `ResetPassword`: Completes the password reset flow using the reset token.
 
-5. **Start the backend server**
-   ```bash
-   npm run dev
-   ```
+### Dashboards
 
-   The backend will be available at `http://localhost:5000`
+- `AdminDashboard`: Company-level overview for admins. It shows company expenses, approval status, stock overview, recent requests, and chart-based analytics.
+- `ManagerDashboard`: Manager landing screen with team-oriented summary cards and quick actions.
+- `EmployeeDashboard`: Personal dashboard for employees. It shows the user's own expenses, pending items, approved items, and total amounts.
 
-### Frontend Setup
+### Expense Management
 
-1. **Navigate to frontend directory**
-   ```bash
-   cd frontend
-   ```
+- `ExpenseList`: Main expense listing page. It switches between personal and company expenses based on role, supports filtering, sorting, date search, and monthly CSV/PDF export.
+- `ExpenseForm`: Create and edit expense form. It supports receipt uploads, OCR extraction, category selection, transport details, and submission/update flow.
+- `ExpenseDetails`: Detailed expense view. It shows receipt previews, generated receipt text, approval timeline, and company details.
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+### Approval and Administration
 
-3. **Start the development server**
-   ```bash
-   npm start
-   ```
+- `ApprovalQueue`: Displays pending approvals for admins and managers. It lets reviewers approve or reject expenses and add rejection comments.
+- `UserManagement`: Admin screen for creating, updating, filtering, and deleting company users.
+- `CompanySettings`: Admin screen for managing company profile, address, currency, approval settings, and company logo.
 
-   The frontend will be available at `http://localhost:3000`
+### Inventory and Profile
 
-## Usage Guide
+- `StockManagement`: Admin inventory screen for managing stock items, stock types, groups, and inline stock updates.
+- `Profile`: Personal account page for updating profile information, changing password, and managing preferences such as language and notifications.
 
-### First Time Setup
+## Backend Modules
 
-1. **Register Your Company**
-   - Visit `http://localhost:3000/register`
-   - Fill in company details and admin user information
-   - The system will auto-detect currency based on country selection
+The backend logic is organized into controllers, routes, models, middleware, and utilities.
 
-2. **Admin Dashboard**
-   - Access comprehensive company overview
-   - Manage users and approval workflows
-   - View all company expenses and analytics
+### Controllers
 
-3. **Create Users**
-   - Navigate to User Management
-   - Add employees and managers
-   - Set up manager relationships
+- `authController`: Registration, login, password reset, and profile authentication operations.
+- `expenseController`: Expense creation, listing, detail retrieval, receipts, exports, updates, and deletions.
+- `approvalController`: Approval queue retrieval and approval or rejection processing.
+- `userController`: User listing, creation, updates, deletion, and manager lookups.
+- `platformController`: Super admin company management APIs.
+- `ocrController`: Receipt OCR and data extraction flow.
+- `stockController`: Stock item CRUD and listing operations.
+- `stockTypeController`: Stock category and type management.
+- `inventory/stockController`: Inventory stock handling for the inventory module.
+- `inventory/expenseController`: Inventory expense handling for the inventory module.
 
-### Expense Workflow
+### Routes
 
-1. **Employee Submits Expense**
-   - Upload receipt (OCR will auto-extract data)
-   - Fill in expense details
-   - Submit for approval
+- `routes/auth.js`: Authentication APIs.
+- `routes/expenses.js`: Expense APIs.
+- `routes/approvals.js`: Approval APIs.
+- `routes/users.js`: User management APIs.
+- `routes/companies.js`: Company settings, currency, and logo APIs.
+- `routes/platform.js`: Super admin multi-company APIs.
+- `routes/ocr.js`: OCR APIs.
+- `routes/stocks.js`: Stock APIs.
+- `routes/stockTypes.js`: Stock type APIs.
+- `routes/inventory/stocks.js`: Inventory stock APIs.
+- `routes/inventory/expenses.js`: Inventory expense APIs.
 
-2. **Manager Approval**
-   - Review pending expenses
-   - Approve or reject with comments
-   - View team expense analytics
+### Models
 
-3. **Admin Oversight**
-   - Monitor all company expenses
-   - Override approvals if needed
-   - Generate reports and analytics
+- `User`: Stores identity, role, company relation, preferences, manager relation, and authentication data.
+- `Company`: Stores company profile, domain, currency, logo, address, and settings.
+- `Expense`: Stores expense information, receipts, approval data, currency conversion, and approval status.
+- `ApprovalFlow`: Stores configurable approval workflow definitions.
+- `StockType`: Stores stock type hierarchy and grouping.
+- `StockItem`: Stores stock items and quantities.
+- `inventory/StockType`: Inventory-specific type model.
+- `inventory/StockItem`: Inventory-specific item model.
+- `inventory/StockExpense`: Inventory expense model.
+- `inventory/StockCategory`: Inventory category model.
 
-## API Endpoints
+### Middleware and Utilities
 
-### Authentication
-- `POST /api/auth/register` - Register company and admin
-- `POST /api/auth/login` - User login
-- `GET /api/auth/me` - Get current user
-- `POST /api/auth/change-password` - Change password
+- `middleware/auth.js`: JWT authentication and role-based authorization.
+- `middleware/upload.js`: File upload handling and validation.
+- `utils/currencyHelper.js`: Currency lookup and conversion helpers.
+- `utils/emailService.js`: Email sending utilities.
 
-### Expenses
-- `GET /api/expenses/my` - Get user expenses
-- `GET /api/expenses/company` - Get company expenses (Admin/Manager)
-- `POST /api/expenses` - Create expense
-- `PUT /api/expenses/:id` - Update expense
-- `DELETE /api/expenses/:id` - Delete expense
-- `GET /api/expenses/:id` - Get expense details
+## Database
 
-### Approvals
-- `GET /api/approvals/pending` - Get pending approvals
-- `POST /api/approvals/:id` - Process approval
-- `GET /api/approvals/history` - Get approval history
+The application uses **MongoDB** as the database and **Mongoose** as the object data modeling layer.
 
-### OCR
-- `POST /api/ocr/process` - Process receipt image
+### Main Collections
 
-### Users (Admin only)
-- `GET /api/users` - Get all users
-- `POST /api/users` - Create user
-- `PUT /api/users/:id` - Update user
-- `DELETE /api/users/:id` - Delete user
+- `users`
+- `companies`
+- `expenses`
+- `approvalflows`
+- `stocktypes`
+- `stockitems`
+- `stockexpenses`
+- `stockcategories`
+- inventory-specific collections for the inventory module
 
-## User Roles & Permissions
+### Data Flow
 
-### Admin
-- Full system access
-- User management
-- Company settings
-- Approval workflow configuration
-- All expense visibility
-- Override approvals
+- Users authenticate with JWT.
+- Expenses are stored with company and user references.
+- Expenses can contain multiple receipt attachments.
+- OCR can extract text and amount data from receipt images.
+- Approval history is stored in the expense document for auditability.
 
-### Manager
-- Team expense visibility
-- Approve/reject team expenses
-- Submit own expenses
-- Team analytics
+## Key Features
 
-### Employee
-- Submit expenses
-- View own expenses
-- Track approval status
-- Update profile
+- Role-based dashboards for admin, manager, and employee users
+- Expense submission with receipt upload
+- OCR parsing for receipt data extraction
+- Multi-step approval workflow
+- Monthly reporting with CSV and PDF export
+- Company settings management
+- Multi-currency support
+- Stock and inventory tracking
+- Profile management and password updates
+- Email support for notifications and workflow communication
 
-## Approval Workflows
+## Step-by-Step Setup
 
-The system supports flexible approval workflows:
+### 1. Download the Project
 
-1. **Sequential Approval**: Step-by-step approvals
-2. **Percentage Rules**: Approval based on percentage of approvers
-3. **Specific Approver Rules**: Designated approvers for certain conditions
-4. **Hybrid Rules**: Combination of multiple rule types
+You can download the code in any of these ways:
 
-## Deployment
+- clone the repository with Git
+- download the project as a ZIP from your repository hosting service
+- copy the project folder to your local machine if you already have it
 
-### Production Environment
+Example:
 
-1. **Backend Deployment**
-   - Use PM2 for process management
-   - Set up MongoDB Atlas for cloud database
-   - Configure environment variables
-   - Set up SSL certificates
+```bash
+git clone <repository-url>
+cd expense-management-mern
+```
 
-2. **Frontend Deployment**
-   - Build the React app: `npm run build`
-   - Serve static files with nginx or similar
-   - Configure reverse proxy for API calls
+### 2. Install Prerequisites
 
-### Environment Variables (Production)
+Install these tools before running the project:
+
+- Node.js 14 or later
+- npm
+- MongoDB locally or MongoDB Atlas
+
+### 3. Install Dependencies
+
+From the project root:
+
+```bash
+npm run install-all
+```
+
+This installs:
+
+- backend dependencies from `backend/package.json`
+- frontend dependencies from `frontend/package.json`
+
+### 4. Configure Environment Variables
+
+Create `backend/.env` with values similar to:
 
 ```env
-NODE_ENV=production
+NODE_ENV=development
 PORT=5000
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/expense_management
-JWT_SECRET=your-production-secret-key
+MONGODB_URI=mongodb://localhost:27017/expense_management
+JWT_SECRET=your-super-secret-jwt-key
+SUPER_ADMIN_EMAIL=admin@example.com
+SUPER_ADMIN_PASSWORD=strong-password
+PLATFORM_COMPANY_NAME=Platform
+PLATFORM_COMPANY_DOMAIN=platform.local
+```
+
+Optional production email settings:
+
+```env
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USER=your-email@gmail.com
 EMAIL_PASS=your-app-password
 ```
 
+### 5. Start MongoDB
+
+- If you are using local MongoDB, make sure the service is running.
+- If you are using Atlas, update `MONGODB_URI` with your connection string.
+
+### 6. Run the Project
+
+Run both frontend and backend together:
+
+```bash
+npm run dev
+```
+
+Or run them separately:
+
+```bash
+npm run server
+npm run client
+```
+
+### 7. Open the Application
+
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:5000`
+
+## User Flow
+
+### Employee Flow
+
+1. Log in to the application.
+2. Open `My Dashboard`.
+3. Create a new expense in `New Expense Request`.
+4. Upload receipts if available.
+5. Review OCR extracted data.
+6. Submit the request and track status from `My Expenses`.
+
+### Manager Flow
+
+1. Log in with manager credentials.
+2. Open `Manager Dashboard`.
+3. Review team expenses from `Company Expenses`.
+4. Open `Pending Approvals` for approval decisions.
+5. Approve or reject requests with comments.
+
+### Admin Flow
+
+1. Log in with admin credentials.
+2. Use `Admin Dashboard` to review company-level analytics.
+3. Open `User Management` to manage employees and managers.
+4. Open `Company Settings` to update company profile and approval preferences.
+5. Open `Stock Management` to manage stock items and stock types.
+6. Review all company expense activity and approvals.
+
+## API Overview
+
+### Authentication
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+- `POST /api/auth/change-password`
+- `PUT /api/auth/profile`
+- `PUT /api/auth/preferences`
+
+### Expenses
+
+- `GET /api/expenses/my`
+- `GET /api/expenses/company`
+- `POST /api/expenses`
+- `GET /api/expenses/:expenseId`
+- `PUT /api/expenses/:expenseId`
+- `DELETE /api/expenses/:expenseId`
+- `GET /api/expenses/:expenseId/receipt`
+- `GET /api/expenses/:expenseId/receipt/download`
+- `GET /api/expenses/reports/monthly/export`
+
+### Approvals
+
+- `GET /api/approvals/pending`
+- `POST /api/approvals/:id`
+- `GET /api/approvals/history`
+
+### Users
+
+- `GET /api/users`
+- `GET /api/users/managers`
+- `POST /api/users`
+- `PUT /api/users/:id`
+- `DELETE /api/users/:id`
+
+### Companies and Platform
+
+- `GET /api/companies/settings`
+- `PUT /api/companies/settings`
+- `PUT /api/companies/settings/logo`
+- `DELETE /api/companies/settings/logo`
+- `GET /api/companies/currencies`
+- `GET /api/platform/companies`
+- `POST /api/platform/companies`
+
+### OCR and Inventory
+
+- `POST /api/ocr/process`
+- `GET /api/stocks`
+- `POST /api/stocks`
+- `PUT /api/stocks/:id`
+- `DELETE /api/stocks/:id`
+- `GET /api/stock-types`
+- `POST /api/stock-types`
+- inventory endpoints under `/api/inventory/*`
+
+## Role-Based Access
+
+### Super Admin
+
+- Can manage companies at the platform level.
+- Can create new companies and admin accounts.
+
+### Admin
+
+- Can manage users, company settings, approvals, expenses, and stocks.
+- Can view all company-level expense data.
+
+### Manager
+
+- Can review team expenses and approvals.
+- Can see company expense data limited to the manager scope.
+
+### Employee
+
+- Can submit expenses.
+- Can view personal expenses and profile settings.
+
+## Deployment Notes
+
+The project includes `vercel.json` and `api/index.js` for Vercel deployment.
+
+- `api/index.js` exports the backend app for serverless deployment.
+- `vercel.json` maps `/api/*` requests to the backend function.
+- The frontend is built as a static React app.
+
+For production, set:
+
+```env
+NODE_ENV=production
+MONGODB_URI=your-production-mongodb-uri
+JWT_SECRET=your-production-secret
+```
+
 ## Troubleshooting
 
-### Common Issues
+- If the backend does not start, confirm that MongoDB is reachable and `MONGODB_URI` is valid.
+- If login fails, check `JWT_SECRET` and whether the database has the expected user records.
+- If file upload fails, confirm that the `uploads` folder is writable.
+- If OCR fails, confirm that the receipt image is clear and supported.
+- If the frontend cannot reach the API, verify the proxy setting in `frontend/package.json`.
 
-1. **MongoDB Connection Error**
-   - Ensure MongoDB is running
-   - Check connection string in .env file
-   - Verify network connectivity
+## Summary
 
-2. **OCR Not Working**
-   - Check if image files are being uploaded correctly
-   - Verify Tesseract.js installation
-   - Ensure adequate server memory
-
-3. **File Upload Issues**
-   - Check upload directory permissions
-   - Verify file size limits
-   - Ensure correct MIME type filtering
-
-4. **Authentication Problems**
-   - Verify JWT secret configuration
-   - Check token expiration settings
-   - Ensure proper CORS setup
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## Support
-
-For support and questions:
-- Create an issue on GitHub
-- Check the documentation
-- Review the API endpoints
-
-## License
-
-This project is licensed under the MIT License. See LICENSE file for details.
-
-## Acknowledgments
-
-- Built with love using the MERN stack
-- OCR powered by Tesseract.js
-- UI components from Bootstrap
-- Icons from Font Awesome
+This project is a complete company expense management platform with authentication, dashboards, expense workflows, OCR receipt scanning, reporting, company settings, user management, stock management, and MongoDB-backed persistence.
