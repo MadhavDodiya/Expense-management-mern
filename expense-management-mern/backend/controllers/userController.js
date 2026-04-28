@@ -15,6 +15,14 @@ const getUsers = async (req, res) => {
       filter.department = department;
     }
 
+    // For managers, only show their team members (including themselves)
+    if (req.user.role === 'MANAGER') {
+      filter.$or = [
+        { manager: req.user.id },
+        { _id: req.user.id }
+      ];
+    }
+
     let users = await User.find(filter)
       .populate('manager', 'firstName lastName email')
       .sort({ createdAt: -1 });
@@ -51,6 +59,15 @@ const createUser = async (req, res) => {
       phone,
       managerId
     } = req.body;
+
+    // Role Hierarchy Validation
+    if (req.user.role === 'MANAGER') {
+      if (role !== 'EMPLOYEE') {
+        return res.status(403).json({ message: 'Managers can only create Employee accounts' });
+      }
+    } else if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ message: 'Access denied' });
+    }
 
     // Check if user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -124,6 +141,24 @@ const updateUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Role Hierarchy Validation
+    const currentUserRole = req.user.role;
+    const targetUserRole = user.role;
+
+    if (currentUserRole === 'MANAGER') {
+      // Managers can only update Employees
+      if (targetUserRole !== 'EMPLOYEE') {
+        return res.status(403).json({ message: 'Managers can only update Employees' });
+      }
+      // Managers cannot promote someone to Manager/Admin
+      if (role && role !== 'EMPLOYEE') {
+        return res.status(403).json({ message: 'Managers cannot assign Manager or Admin roles' });
+      }
+    } else if (currentUserRole !== 'ADMIN') {
+      // Employees shouldn't even reach here due to 'authorize' middleware, but just in case
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
     // Validate manager (if provided)
     if (managerId) {
       const manager = await User.findOne({ 
@@ -176,6 +211,11 @@ const deleteUser = async (req, res) => {
     // Cannot delete admin user
     if (user.role === 'ADMIN') {
       return res.status(400).json({ message: 'Cannot delete admin user' });
+    }
+
+    // Role Hierarchy Validation
+    if (req.user.role === 'MANAGER' && user.role !== 'EMPLOYEE') {
+      return res.status(403).json({ message: 'Managers can only delete Employees' });
     }
 
     await User.findByIdAndDelete(userId);

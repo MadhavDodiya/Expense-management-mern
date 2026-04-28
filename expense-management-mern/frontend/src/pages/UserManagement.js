@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 const UserManagement = () => {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [managers, setManagers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -155,6 +157,28 @@ const UserManagement = () => {
       case 'EMPLOYEE': return 'badge bg-primary';
       default: return 'badge bg-secondary';
     }
+  };
+
+  // Helper to check if a field should be read-only based on hierarchy
+  // employee cannot change his department or his role
+  // manager or admin can change role of employee or department of employee
+  // only admin can change role of manager or department
+  const isFieldDisabled = (field) => {
+    if (!editingUser) return false; // Always editable for new users
+    
+    const targetRole = editingUser.role;
+    const currentRole = currentUser?.role;
+
+    if (currentRole === 'ADMIN') return false; // Admin can change anything
+    
+    if (currentRole === 'MANAGER') {
+      // Manager can change EMPLOYEE role/department
+      if (targetRole === 'EMPLOYEE') return false;
+      // Manager cannot change MANAGER or ADMIN role/department
+      if (field === 'role' || field === 'department') return true;
+    }
+
+    return false;
   };
 
   return (
@@ -355,6 +379,7 @@ const UserManagement = () => {
                         value={formData.email}
                         onChange={handleInputChange}
                         required
+                        readOnly={!!editingUser}
                       />
                     </div>
                     <div className="col-md-6">
@@ -379,10 +404,15 @@ const UserManagement = () => {
                         value={formData.role}
                         onChange={handleInputChange}
                         required
+                        disabled={isFieldDisabled('role')}
                       >
                         <option value="EMPLOYEE">Employee</option>
-                        <option value="MANAGER">Manager</option>
-                        <option value="ADMIN">Admin</option>
+                        {currentUser?.role === 'ADMIN' && (
+                          <>
+                            <option value="MANAGER">Manager</option>
+                            <option value="ADMIN">Admin</option>
+                          </>
+                        )}
                       </select>
                     </div>
                     <div className="col-md-6">
@@ -392,6 +422,7 @@ const UserManagement = () => {
                         name="department"
                         value={formData.department}
                         onChange={handleInputChange}
+                        disabled={isFieldDisabled('department')}
                       >
                         <option value="">Select Department</option>
                         <option value="IT">IT</option>

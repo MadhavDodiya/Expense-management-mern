@@ -79,6 +79,12 @@ const upsertStock = async (req, res) => {
       { new: true, upsert: true, setDefaultsOnInsert: true }
     ).populate('typeId', 'name group');
 
+    // Safeguard: keep quantity within cap if set
+    if (stock.maxQuantity > 0 && stock.quantity > stock.maxQuantity) {
+      stock.quantity = stock.maxQuantity;
+      await stock.save();
+    }
+
     res.status(201).json({ stock });
   } catch (error) {
     console.error('Upsert stock error:', error);

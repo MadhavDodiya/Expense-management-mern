@@ -217,6 +217,7 @@ const Profile = () => {
                         name="department"
                         value={profileData.department}
                         onChange={handleProfileChange}
+                        readOnly={user?.role !== 'ADMIN'}
                       />
                     </div>
                   </div>

@@ -233,7 +233,7 @@ const updateProfile = async (req, res) => {
       user.phone = String(phone).trim();
     }
 
-    if (department !== undefined) {
+    if (department !== undefined && req.user.role === 'ADMIN') {
       user.department = String(department).trim();
     }
 

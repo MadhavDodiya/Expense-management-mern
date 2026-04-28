@@ -23,6 +23,7 @@ const ExpenseList = () => {
     status: 'ALL',
     category: 'ALL',
     userId: 'ALL',
+    department: 'ALL',
     startDate: '',
     endDate: '',
     search: '',
@@ -83,7 +84,8 @@ const ExpenseList = () => {
       month: Number(monthText),
       status: localFilters.status,
       category: localFilters.category,
-      userId: localFilters.userId
+      userId: localFilters.userId,
+      department: localFilters.department
     });
   };
 
@@ -184,22 +186,40 @@ const ExpenseList = () => {
               </button>
             </div>
             {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
-              <div className="col-md-3">
-                <label className="form-label">User</label>
-                <select
-                  name="userId"
-                  className="form-select"
-                  value={localFilters.userId}
-                  onChange={handleFilterChange}
-                >
-                  <option value="ALL">All Users</option>
-                  {companyUsers.map((companyUser) => (
-                    <option key={companyUser._id} value={companyUser._id}>
-                      {companyUser.firstName} {companyUser.lastName}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <>
+                <div className="col-md-2">
+                  <label className="form-label">Department</label>
+                  <select
+                    name="department"
+                    className="form-select"
+                    value={localFilters.department}
+                    onChange={handleFilterChange}
+                  >
+                    <option value="ALL">All Depts</option>
+                    <option value="IT">IT</option>
+                    <option value="HR">HR</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Sales">Sales</option>
+                    <option value="Marketing">Marketing</option>
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <label className="form-label">User</label>
+                  <select
+                    name="userId"
+                    className="form-select"
+                    value={localFilters.userId}
+                    onChange={handleFilterChange}
+                  >
+                    <option value="ALL">All Users</option>
+                    {companyUsers.map((companyUser) => (
+                      <option key={companyUser._id} value={companyUser._id}>
+                        {companyUser.firstName} {companyUser.lastName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
             )}
             <div className="col-md-4">
               <label className="form-label">Search</label>

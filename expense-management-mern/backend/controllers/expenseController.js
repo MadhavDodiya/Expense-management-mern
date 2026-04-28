@@ -679,6 +679,16 @@ const getCompanyExpenses = async (req, res) => {
     const filter = { company: req.user.company };
     applyCommonExpenseFilters(filter, req.query);
 
+    // Support department filtering
+    if (req.query.department && req.query.department !== 'ALL') {
+      const usersInDept = await User.find({ 
+        company: req.user.company, 
+        department: req.query.department 
+      }).select('_id');
+      const userIds = usersInDept.map(u => u._id);
+      filter.user = { $in: userIds };
+    }
+
     if (userId && userId !== 'ALL') {
       filter.user = userId;
     }
@@ -686,11 +696,22 @@ const getCompanyExpenses = async (req, res) => {
     // For managers, show only their team's expenses
     if (req.user.role === 'MANAGER') {
       const teamMemberIds = await getManagerTeamUserIds(req.user.id, req.user.company);
+      
       if (userId && userId !== 'ALL') {
-        if (!teamMemberIds.includes(userId.toString())) {
-          return res.status(403).json({ message: 'Access denied for selected user' });
+        // If they requested a specific user, check if they are in team
+        if (teamMemberIds.includes(userId.toString())) {
+          filter.user = userId;
+        } else {
+          // If not in team, force filter to show nothing (or just their own)
+          filter.user = req.user.id; 
         }
-        filter.user = userId;
+      } else if (req.query.department && req.query.department !== 'ALL') {
+        // Intersect department users with team members
+        const currentDeptUserIds = filter.user?.$in || [];
+        const intersectedIds = currentDeptUserIds.filter(id => 
+          teamMemberIds.includes(id.toString())
+        );
+        filter.user = { $in: intersectedIds };
       } else {
         filter.user = { $in: teamMemberIds };
       }
@@ -805,22 +826,42 @@ const exportMonthlyReport = async (req, res) => {
     if (status !== 'ALL') filter.status = status;
     if (category !== 'ALL') filter.category = category;
 
+    // Support department filtering
+    if (req.query.department && req.query.department !== 'ALL') {
+      const usersInDept = await User.find({ 
+        company: req.user.company, 
+        department: req.query.department 
+      }).select('_id');
+      const userIds = usersInDept.map(u => u._id);
+      filter.user = { $in: userIds };
+    }
+
     if (req.user.role === 'EMPLOYEE') {
       filter.user = req.user.id;
     } else if (req.user.role === 'MANAGER') {
-      const teamUserIds = await getManagerTeamUserIds(req.user.id, req.user.company);
+      const teamMemberIds = await getManagerTeamUserIds(req.user.id, req.user.company);
       filter.company = req.user.company;
+      
       if (userId && userId !== 'ALL') {
-        if (!teamUserIds.includes(userId.toString())) {
-          return res.status(403).json({ message: 'Access denied for selected user' });
+        if (teamMemberIds.includes(userId.toString())) {
+          filter.user = userId;
+        } else {
+          filter.user = req.user.id;
         }
-        filter.user = userId;
+      } else if (req.query.department && req.query.department !== 'ALL') {
+        const currentDeptUserIds = filter.user?.$in || [];
+        const intersectedIds = currentDeptUserIds.filter(id => 
+          teamMemberIds.includes(id.toString())
+        );
+        filter.user = { $in: intersectedIds };
       } else {
-        filter.user = { $in: teamUserIds };
+        filter.user = { $in: teamMemberIds };
       }
     } else {
       filter.company = req.user.company;
-      if (userId && userId !== 'ALL') filter.user = userId;
+      if (userId && userId !== 'ALL') {
+        filter.user = userId;
+      }
     }
 
     const expenses = await Expense.find(filter)
@@ -1114,6 +1155,110 @@ const startApprovalWorkflow = async (expense) => {
   }
 };
 
+// Get dashboard stats
+const getDashboardStats = async (req, res) => {
+  try {
+    const { company, id: userId, role } = req.user;
+    
+    let userFilter = { company };
+    let expenseFilter = { company };
+    
+    if (role === 'MANAGER') {
+      const teamUserIds = await getManagerTeamUserIds(userId, company);
+      expenseFilter.user = { $in: teamUserIds };
+      userFilter.manager = userId;
+    } else if (role === 'EMPLOYEE') {
+      expenseFilter.user = userId;
+    }
+
+    // Aggregate basic stats
+    const statsResult = await Expense.aggregate([
+      { $match: expenseFilter },
+      {
+        $group: {
+          _id: null,
+          totalApprovedCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'APPROVED'] }, 1, 0] }
+          },
+          totalAmount: {
+            $sum: { $cond: [{ $eq: ['$status', 'APPROVED'] }, '$convertedAmount', 0] }
+          },
+          pendingApprovals: {
+            $sum: { $cond: [{ $eq: ['$status', 'PENDING'] }, 1, 0] }
+          }
+        }
+      }
+    ]);
+
+    const baseStats = statsResult[0] || { totalApprovedCount: 0, totalAmount: 0, pendingApprovals: 0 };
+
+    // Team Members count
+    let teamMemberCount = 0;
+    if (role === 'ADMIN') {
+      teamMemberCount = await User.countDocuments({ company });
+    } else if (role === 'MANAGER') {
+      teamMemberCount = await User.countDocuments({ company, manager: userId });
+    }
+    
+    // Approved this month (using expenseDate)
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const approvedThisMonth = await Expense.countDocuments({
+      ...expenseFilter,
+      status: 'APPROVED',
+      expenseDate: { $gte: startOfMonth }
+    });
+
+    // Recent expenses (Limit to 5)
+    const recentExpenses = await Expense.find(expenseFilter)
+      .populate('user', 'firstName lastName email')
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    // Monthly data for chart (Last 6 months)
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const monthlyStats = await Expense.aggregate([
+      {
+        $match: {
+          ...expenseFilter,
+          status: 'APPROVED',
+          expenseDate: { $gte: sixMonthsAgo }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            month: { $month: '$expenseDate' },
+            year: { $year: '$expenseDate' }
+          },
+          amount: { $sum: '$convertedAmount' }
+        }
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1 } }
+    ]);
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyExpenses = monthlyStats.map(item => {
+      const label = `${monthNames[item._id.month - 1]} ${item._id.year}`;
+      return [label, item.amount];
+    });
+
+    res.json({
+      totalExpenses: baseStats.totalApprovedCount,
+      totalAmount: baseStats.totalAmount,
+      pendingApprovals: baseStats.pendingApprovals,
+      approvedExpenses: baseStats.totalApprovedCount,
+      teamMembers: teamMemberCount,
+      approvedThisMonth,
+      recentExpenses,
+      monthlyExpenses
+    });
+  } catch (error) {
+    console.error('Get dashboard stats error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // Helper function to check if user is in team
 const isUserInTeam = async (userId, managerId) => {
   const user = await User.findById(userId);
@@ -1129,5 +1274,6 @@ module.exports = {
   getExpenseReceipt,
   downloadExpenseReceipt,
   updateExpense,
-  deleteExpense
+  deleteExpense,
+  getDashboardStats
 };

@@ -8,7 +8,8 @@ const {
   getExpenseReceipt,
   downloadExpenseReceipt,
   updateExpense, 
-  deleteExpense 
+  deleteExpense,
+  getDashboardStats
 } = require('../controllers/expenseController');
 const { auth, authorize } = require('../middleware/auth');
 const { upload, handleUploadError } = require('../middleware/upload');
@@ -45,6 +46,11 @@ router.get('/:expenseId/receipt', auth, getExpenseReceipt);
 // @access  Private
 router.get('/:expenseId/receipt/download', auth, downloadExpenseReceipt);
 
+// @route   GET /api/expenses/stats
+// @desc    Get dashboard stats
+// @access  Private
+router.get('/stats', auth, getDashboardStats);
+
 // @route   GET /api/expenses/:expenseId
 // @desc    Get single expense
 // @access  Private
@@ -59,5 +65,6 @@ router.put('/:expenseId', auth, upload.array('receipts', 5), handleUploadError, 
 // @desc    Delete expense (only if pending)
 // @access  Private
 router.delete('/:expenseId', auth, deleteExpense);
+
 
 module.exports = router;

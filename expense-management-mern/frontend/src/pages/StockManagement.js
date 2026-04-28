@@ -678,7 +678,15 @@ const StockManagement = () => {
                             </button>
                             <button
                               className="btn btn-sm btn-outline-secondary"
-                              onClick={() => handleInlineUpdate(item._id, { quantity: Number(item.quantity || 0) + 1 })}
+                              onClick={() => {
+                                const isLimited = Number(item.maxQuantity || 0) > 0;
+                                const isFull = isLimited && Number(item.quantity || 0) >= Number(item.maxQuantity || 0);
+                                if (isFull) {
+                                  toast.error(`You can't add because max limit (${item.maxQuantity}) is reached`);
+                                  return;
+                                }
+                                handleInlineUpdate(item._id, { quantity: Number(item.quantity || 0) + 1 });
+                              }}
                               type="button"
                             >
                               +1

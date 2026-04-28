@@ -25,7 +25,7 @@ const EmployeeDashboard = () => {
     const totalExpenses = expenses.length;
     const pendingExpenses = expenses.filter(exp => exp.status === 'PENDING').length;
     const approvedExpenses = expenses.filter(exp => exp.status === 'APPROVED').length;
-    const totalAmount = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const totalAmount = expenses.reduce((sum, exp) => sum + (exp.convertedAmount || exp.amount || 0), 0);
 
     setStats({
       totalExpenses,
