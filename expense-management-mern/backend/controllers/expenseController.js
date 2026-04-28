@@ -699,7 +699,7 @@ const getCompanyExpenses = async (req, res) => {
       
       if (userId && userId !== 'ALL') {
         // If they requested a specific user, check if they are in team
-        if (teamMemberIds.includes(userId.toString())) {
+        if (userId && teamMemberIds.includes(userId.toString())) {
           filter.user = userId;
         } else {
           // If not in team, force filter to show nothing (or just their own)
@@ -843,7 +843,7 @@ const exportMonthlyReport = async (req, res) => {
       filter.company = req.user.company;
       
       if (userId && userId !== 'ALL') {
-        if (teamMemberIds.includes(userId.toString())) {
+        if (userId && teamMemberIds.includes(userId.toString())) {
           filter.user = userId;
         } else {
           filter.user = req.user.id;
